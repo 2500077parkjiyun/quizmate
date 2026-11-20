@@ -84,7 +84,7 @@ function viewHome(){
   <div class="two">
     <section class="card">
       <h2>최근 점수</h2>
-      ${spark(scores)}
+      <figure class="chart">${spark(scores)}${scores.length >= 2 ? `<figcaption class="muted small">최근 ${scores.length}번 푼 점수 (왼쪽이 오래된 기록)</figcaption>` : ""}</figure>
       ${at.length ? `<ul class="list" style="margin-top:10px">${at.slice(0, 5).map(a => `<li><div class="t"><b>${esc(a.title)}</b><span class="muted small">${fmtDateTime(a.createdAt)} · ${a.total}문제 중 ${a.correct}문제 정답</span></div><span class="sc">${a.score}</span></li>`).join("")}</ul>` : `<p class="muted" style="margin-top:6px">아직 푼 기록이 없어요. 오른쪽 예시 세트로 먼저 풀어 보세요.</p>`}
     </section>
     <section class="card">
@@ -170,12 +170,13 @@ function viewNew(){
       <div class="opts-grid">
         <div><label class="lbl" for="f-title">문제 세트 제목</label><input id="f-title" class="field" data-in="title" value="${esc(f.title)}" placeholder="예: 생명과학 3단원 광합성" maxlength="60"></div>
         <div><label class="lbl" for="f-subj">과목</label><input id="f-subj" class="field" data-in="subject" value="${esc(f.subject)}" placeholder="예: 과학" list="subj-list" maxlength="20"><datalist id="subj-list">${subjects.map(s => `<option value="${esc(s)}">`).join("")}</datalist></div>
-        <div><span class="lbl">문제 수</span><div class="seg">${[5, 10, 15, 20].map(n => `<button class="${f.count === n ? "on" : ""}" data-act="count" data-v="${n}" aria-pressed="${f.count === n}">${n}문제</button>`).join("")}</div></div>
-        <div><span class="lbl">난이도</span><div class="seg">${["easy", "medium", "hard"].map(d => `<button class="${f.diff === d ? "on" : ""}" data-act="diff" data-v="${d}" aria-pressed="${f.diff === d}">${DIFF_LABEL[d]}</button>`).join("")}</div></div>
+        <!-- 4주차: 보기가 정해진 값은 라디오(하나만)·체크박스(여러 개)로 고르고, 관련 항목은 fieldset + legend로 묶는다 -->
+        <fieldset class="pick"><legend class="lbl">문제 수</legend><div class="seg">${[5, 10, 15, 20].map(n => `<label><input type="radio" name="count" value="${n}" data-ch="count" ${f.count === n ? "checked" : ""}><span>${n}문제</span></label>`).join("")}</div></fieldset>
+        <fieldset class="pick"><legend class="lbl">난이도</legend><div class="seg">${["easy", "medium", "hard"].map(d => `<label><input type="radio" name="diff" value="${d}" data-ch="diff" ${f.diff === d ? "checked" : ""}><span>${DIFF_LABEL[d]}</span></label>`).join("")}</div></fieldset>
       </div>
-      <div style="margin-top:18px"><span class="lbl">문제 유형 (여러 개 고를 수 있어요)</span>
-        <div class="row">${TYPES.map(t => `<button class="toggle ${f.types[t] ? "on" : ""}" data-act="type" data-v="${t}" aria-pressed="${!!f.types[t]}"><span class="box">✓</span>${TYPE_LABEL[t]}</button>`).join("")}</div>
-      </div>
+      <fieldset class="pick" style="margin-top:18px"><legend class="lbl">문제 유형 (여러 개 고를 수 있어요)</legend>
+        <div class="row">${TYPES.map(t => `<label class="toggle" data-v="${t}"><input type="checkbox" name="types" value="${t}" data-ch="type" ${f.types[t] ? "checked" : ""}><span class="box" aria-hidden="true">✓</span>${TYPE_LABEL[t]}</label>`).join("")}</div>
+      </fieldset>
     </section>
     <section class="card gen-bar" id="genbar">${bar}</section>
   </div>`;
@@ -306,7 +307,8 @@ function viewData(){
       <h2>데이터 구조</h2>
       <p class="muted small" style="margin:-6px 0 12px">관계형 데이터베이스(PostgreSQL)의 테이블 5개로 나눠 저장해요. 지금 내 기록은 약 ${Math.max(1, Math.round(bytes / 1024))}KB예요.</p>
       <div class="tablewrap"><table class="schema">
-        <thead><tr><th>테이블</th><th>내 행 수</th><th>주요 열</th><th>언제 저장되나요</th></tr></thead>
+        <caption class="sr-only">퀴즈메이트 데이터베이스 테이블 5개와 내 행 수</caption>
+        <thead><tr><th scope="col">테이블</th><th scope="col">내 행 수</th><th scope="col">주요 열</th><th scope="col">언제 저장되나요</th></tr></thead>
         <tbody>
           <tr><td><b>회원</b><br><code>profiles</code></td><td class="num">${cloud ? 1 : 0}</td><td>사용자 ID, 화면에 보이는 이름, 가입 시각</td><td>회원가입할 때 자동으로</td></tr>
           <tr><td><b>문제 세트</b><br><code>quiz_sets</code></td><td class="num">${sets.length}</td><td>제목, 과목, 난이도, 원본 자료, 푼 횟수, 최근·최고 점수</td><td>AI가 문제를 만들었을 때</td></tr>

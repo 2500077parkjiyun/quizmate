@@ -13,11 +13,11 @@ function updateNav(r){
   $("#tabbar").innerHTML = ROUTES.map(x => item(x, true)).join("");
 }
 function updateStatus(){
-  const st = Store.mode === "cloud" ? ["ok","Supabase에 저장 중"] : Store.mode === "local" ? ["","체험 모드 · 이 브라우저에 저장"]
+  const st = Store.mode === "cloud" ? ["ok","DB 저장 중"] : Store.mode === "local" ? ["","체험 모드"]
     : Store.mode === "error" ? ["no","DB 연결 실패"] : Store.mode === "signedout" ? ["","로그인 필요"] : ["","DB 연결 중"];
   const ai = !S.aiChecked ? ["","AI 확인 중"] : aiReady() ? ["ok","AI 연결됨"] : ["no","AI 사용 불가"];
   const who = Auth.user
-    ? `<button class="btn ghost small" data-act="logout" title="${esc(Auth.user.email)}">${esc(Auth.name)} · 로그아웃</button>`
+    ? `<button class="btn ghost small" data-act="logout" title="${esc(Auth.user.email)}">${esc(Auth.name)}님 · 로그아웃</button>`
     : Store.mode === "local" && sb ? `<button class="btn ghost small" data-act="go-login">로그인</button>` : "";
   $("#status").innerHTML = `<span><i class="dot ${st[0]}"></i>${st[1]}</span><span><i class="dot ${ai[0]}"></i>${ai[1]}</span>${who}`;
 }
@@ -283,9 +283,6 @@ document.addEventListener("click", async e => {
     case "example-text":
       if (f.text.trim() && !(await ask({title:"예시 자료로 바꿀까요?", body:"지금 쓴 자료가 예시 자료(광합성)로 바뀌어요.", ok:"바꾸기"}))) return;
       f.text = EXAMPLE_TEXT; f.tab = "text"; f.fileNote = ""; if (!f.title) f.title = "광합성"; if (!f.subject) f.subject = "과학"; S.gen = null; render(); break;
-    case "count": f.count = +v; S.gen = null; render(); break;
-    case "diff": f.diff = v; S.gen = null; render(); break;
-    case "type": f.types[v] = !f.types[v]; S.gen = null; render(); break;
     case "generate": generate(); break;
     case "stop-gen": S.gen?.ctl?.abort(); break;
     case "opt": { const q = S.quiz, x = q.questions[q.idx]; q.answers[x.id] = x.options[+b.dataset.i]; render(); break; }
@@ -378,6 +375,9 @@ document.addEventListener("change", e => {
   if (k === "file") handleFiles(el.files);
   else if (k === "import") { importData(el.files && el.files[0]); el.value = ""; }
   else if (k === "nf") { S.nf[el.name] = el.value; render(); }
+  else if (k === "count") { S.form.count = +el.value; S.gen = null; renderGenBar(); }
+  else if (k === "diff") { S.form.diff = el.value; S.gen = null; renderGenBar(); }
+  else if (k === "type") { S.form.types[el.value] = el.checked; S.gen = null; renderGenBar(); }
 });
 document.addEventListener("focusout", () => { setTimeout(() => { if (S.pendingRender && !($("#main").contains(document.activeElement) && /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName))) render(); }, 150); });
 document.addEventListener("dragover", e => { const d = e.target.closest && e.target.closest("#drop"); if (d) { e.preventDefault(); d.classList.add("over"); } });

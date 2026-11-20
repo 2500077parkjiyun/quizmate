@@ -1,4 +1,11 @@
-/* 퀴즈메이트 스타일 (디자인 담당: CSS) */
+/* 퀴즈메이트 스타일 — 외부 스타일시트 (5주차: HTML은 뼈대, CSS는 옷)
+   수업 내용이 쓰인 곳
+   - 5주차 선택자: 태그(h1, p), 클래스(.card, .btn), 아이디(#main, #status) / 나중에 쓴 규칙이 이긴다(캐스케이드)
+   - 5주차 색: 16진수(#4D5BFF), rgb()/rgba(), hsl() / 단위: px, rem, %, vw / Google Fonts + 대체 글꼴 목록
+   - 6주차 박스 모델: * { box-sizing: border-box }, padding·margin·border, display(inline-flex, grid)
+   - 6주차 시각 효과: border-radius, box-shadow, linear/radial-gradient, filter, backdrop-filter
+   - 6주차 CSS 변수: :root 에 색을 정의하고 var(--primary) 로 불러 씀
+   - 6주차 대표 선택자: 속성 선택자 [data-v="ox"], 가상 클래스 :checked :focus-visible :hover, 결합자 input:checked + span */
 :root{
   /* 퀴즈메이트 v3: 하얀 바탕 + 하늘·민트·노랑·핑크·보라 포인트. 위쪽 메뉴 바, 가운데 정렬 본문 */
   --bg:#F7F8FC; --surface:#FFFFFF; --surface-2:#F2F4FA; --ink:#1A1D2E; --ink-2:#575C72; --ink-3:#8A8FA5; --line:#E5E8F1;
@@ -6,7 +13,7 @@
   --sky:#1E90F0; --sky-s:#E3F2FF; --mint:#0FA67A; --mint-s:#DFF7EE; --sun:#E08A00; --sun-bg:#FFD23F; --sun-s:#FFF5D4;
   --coral:#F04F4F; --coral-s:#FFE8E8; --pink:#E8468F; --pink-s:#FFE6F1; --violet:#7C55F0; --violet-s:#F0EAFF;
   --good:var(--mint); --good-soft:var(--mint-s); --pen:var(--coral); --pen-soft:var(--coral-s); --accent:var(--primary); --accent-soft:var(--primary-s);
-  --hl:#FFE36B;
+  --hl:hsl(51 100% 71%);  /* 형광펜 노랑: hsl(색상 채도 밝기) 표기 */
   --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   --font-display:"Jua","IBM Plex Sans KR","Apple SD Gothic Neo",sans-serif;
   --font-hand:"Nanum Pen Script","Comic Sans MS",cursive;
@@ -24,8 +31,8 @@ body::before{content:"";position:absolute;inset:0 0 auto 0;height:620px;z-index:
              radial-gradient(380px 260px at 78% 40%,rgba(15,166,122,.12),transparent 70%)}
 h1,h2,h3{margin:0;text-wrap:balance;line-height:1.3;font-family:var(--font-display);font-weight:400;letter-spacing:-.005em}
 h1{font-size:clamp(28px,4vw,40px)}
-h2{font-size:21px}
-h3{font-size:19px}
+h2{font-size:1.3rem}  /* rem: 브라우저 기본 글자 크기(16px)의 배수 */
+h3{font-size:1.2rem}
 p{margin:0}
 a{color:var(--primary)}
 button,input,textarea,select{font:inherit;color:inherit}
@@ -105,7 +112,7 @@ main{max-width:1120px;margin:0 auto;padding:34px clamp(16px,4vw,32px) 80px}
 .notice{border-radius:16px;background:var(--coral-s);color:#8F2626;padding:13px 18px;font-size:14.5px}
 .notice a{color:inherit;font-weight:700}
 .notice.info{background:var(--sky-s);color:#0D4E86}
-label.lbl,span.lbl{display:block;font-size:13.5px;font-weight:700;margin-bottom:8px;color:var(--ink-2)}
+label.lbl,span.lbl,legend.lbl{display:block;font-size:13.5px;font-weight:700;margin-bottom:8px;color:var(--ink-2)}
 .field{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface);transition:border-color .15s,box-shadow .15s}
 .field:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 4px var(--primary-s)}
 textarea.field{resize:vertical;line-height:1.7}
@@ -173,15 +180,25 @@ textarea.field{resize:vertical;line-height:1.7}
 .step-h .n{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-family:var(--font-display);font-size:19px;color:#fff;background:var(--sky)}
 .steps > .card:nth-child(2) .step-h .n{background:var(--pink)}
 .seg{display:inline-flex;flex-wrap:wrap;gap:4px;padding:4px;background:var(--surface-2);border-radius:999px}
-.seg button{border:0;background:transparent;padding:8px 16px;border-radius:999px;cursor:pointer;font-weight:600;color:var(--ink-2)}
+.seg button,.seg label span{display:inline-block;border:0;background:transparent;padding:8px 16px;border-radius:999px;cursor:pointer;font-weight:600;color:var(--ink-2)}
 .seg button.on{background:var(--ink);color:#fff;font-weight:700}
-.toggle{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border:2px solid var(--line);border-radius:999px;background:var(--surface);cursor:pointer;font-weight:700;color:var(--ink-2);transition:all .15s}
+/* 6주차 결합자 + 가상 클래스: 체크된 라디오 바로 뒤의 글자(span)를 칠한다 */
+.seg input:checked + span{background:var(--ink);color:#fff;font-weight:700}
+.seg input:focus-visible + span,.toggle:has(input:focus-visible){outline:3px solid var(--primary);outline-offset:2px}
+/* 진짜 입력 칸은 화면에서만 숨기고(스크린 리더와 키보드는 그대로 사용) 꾸민 이름표를 보여 준다 */
+.seg input,.toggle input,.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+fieldset.pick{border:0;margin:0;padding:0;min-width:0}
+fieldset.pick legend{padding:0}
+.toggle{position:relative;display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border:2px solid var(--line);border-radius:999px;background:var(--surface);cursor:pointer;font-weight:700;color:var(--ink-2);transition:all .15s}
 .toggle .box{width:20px;height:20px;border-radius:50%;border:2px solid var(--ink-3);display:grid;place-items:center;font-size:11px;color:transparent}
-.toggle.on{color:var(--ink)}
-.toggle[data-v="multiple_choice"].on{border-color:var(--sky);background:var(--sky-s)} .toggle[data-v="multiple_choice"].on .box{background:var(--sky);border-color:var(--sky);color:#fff}
-.toggle[data-v="ox"].on{border-color:var(--mint);background:var(--mint-s)} .toggle[data-v="ox"].on .box{background:var(--mint);border-color:var(--mint);color:#fff}
-.toggle[data-v="short_answer"].on{border-color:var(--sun);background:var(--sun-s)} .toggle[data-v="short_answer"].on .box{background:var(--sun);border-color:var(--sun);color:#fff}
-.toggle[data-v="essay"].on{border-color:var(--violet);background:var(--violet-s)} .toggle[data-v="essay"].on .box{background:var(--violet);border-color:var(--violet);color:#fff}
+.toggle:has(input:checked){color:var(--ink)}
+/* 6주차 속성 선택자: data-v 값에 따라 유형별 색을 다르게 */
+.toggle[data-v="multiple_choice"]:has(input:checked){border-color:var(--sky);background:var(--sky-s)} .toggle[data-v="multiple_choice"] input:checked + .box{background:var(--sky);border-color:var(--sky);color:#fff}
+.toggle[data-v="ox"]:has(input:checked){border-color:var(--mint);background:var(--mint-s)} .toggle[data-v="ox"] input:checked + .box{background:var(--mint);border-color:var(--mint);color:#fff}
+.toggle[data-v="short_answer"]:has(input:checked){border-color:var(--sun);background:var(--sun-s)} .toggle[data-v="short_answer"] input:checked + .box{background:var(--sun);border-color:var(--sun);color:#fff}
+.toggle[data-v="essay"]:has(input:checked){border-color:var(--violet);background:var(--violet-s)} .toggle[data-v="essay"] input:checked + .box{background:var(--violet);border-color:var(--violet);color:#fff}
+figure.chart{margin:0}
+figure.chart figcaption{margin-top:4px}
 .opts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 @media (max-width:640px){.opts-grid{grid-template-columns:1fr}}
 .drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:36px 16px;border:2px dashed #C9D3EA;border-radius:20px;background:linear-gradient(135deg,var(--sky-s),var(--violet-s));cursor:pointer;transition:border-color .15s,transform .15s}
