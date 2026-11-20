@@ -80,6 +80,10 @@ function authErr(e){
 const ms = t => t ? new Date(t).getTime() : 0;
 const iso = n => new Date(n || Date.now()).toISOString();
 
+/* DB에 저장된 세트만 외래 키(set_id)로 연결한다.
+   예시 세트("example")나 이미 지운 세트를 가리키면 외래 키 규칙에 걸리므로 빈 값(null)으로 둔다. 세트 제목은 set_title에 남는다. */
+const savedSetId = id => (id && Store.savedQ.has(id)) ? id : null;
+
 const Rows = {
   setToRow:(id, d) => ({id, title:d.title, subject:d.subject || "기타", difficulty:d.difficulty || "medium", types:d.types || [],
     material:d.material || "", attempt_count:d.attemptCount || 0, last_score:d.lastScore ?? null, best_score:d.bestScore ?? null, created_at:iso(d.createdAt)}),
@@ -90,11 +94,11 @@ const Rows = {
     attemptCount:r.attempt_count, lastScore:r.last_score, bestScore:r.best_score, createdAt:ms(r.created_at),
     questions:qs.sort((a, b) => a.position - b.position).map(q => ({id:q.id, type:q.type, question:q.question, options:q.options,
       answer:q.answer, acceptable_answers:q.acceptable_answers, rubric:q.rubric, explanation:q.explanation, source_quote:q.source_quote, difficulty:q.difficulty}))}),
-  attemptToRow:(id, d) => ({id, set_id:d.setId || null, title:d.title, subject:d.subject || "", mode:d.mode || "set", score:d.score,
+  attemptToRow:(id, d) => ({id, set_id:savedSetId(d.setId), title:d.title, subject:d.subject || "", mode:d.mode || "set", score:d.score,
     correct:d.correct, total:d.total, by_type:d.byType || {}, fallback:!!d.fallback, answers:d.answers || [], created_at:iso(d.createdAt)}),
   rowToAttempt:r => ({kind:"attempt", setId:r.set_id, title:r.title, subject:r.subject, mode:r.mode, score:r.score, correct:r.correct,
     total:r.total, byType:r.by_type, fallback:r.fallback, answers:r.answers, createdAt:ms(r.created_at)}),
-  wrongToRow:(id, d) => ({id, set_id:d.setId || null, set_title:d.setTitle || "", subject:d.subject || "기타", question:d.question,
+  wrongToRow:(id, d) => ({id, set_id:savedSetId(d.setId), set_title:d.setTitle || "", subject:d.subject || "기타", question:d.question,
     wrong_answer:d.wrongAnswer ?? null, wrong_count:d.wrongCount || 0, correct_streak:d.correctStreak || 0, memo:d.memo || "",
     status:d.status === "mastered" ? "mastered" : "active", created_at:iso(d.createdAt), updated_at:iso(d.updatedAt || d.createdAt)}),
   rowToWrong:r => ({kind:"wrong", setId:r.set_id, setTitle:r.set_title, subject:r.subject, question:r.question, wrongAnswer:r.wrong_answer,
