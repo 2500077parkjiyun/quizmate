@@ -435,7 +435,7 @@ function viewSets(){
     <div class="chips"><span class="chip">${esc(s.subject || "기타")}</span><span class="chip soft">${DIFF_LABEL[s.difficulty] || "보통"}</span><span class="chip soft">${s.questions.length}문제</span>${s.example ? `<span class="chip soft">체험용 예시</span>` : ""}</div>
     <p class="muted small">${s.example ? "AI 없이도 풀어 볼 수 있는 예시예요" : `${fmtDate(s.createdAt)} 만듦 · ${s.attemptCount || 0}번 풂`}</p>
     ${s.bestScore != null ? `<div class="scores"><span>최근<span class="pen">${s.lastScore}</span></span><span>최고<span class="pen">${s.bestScore}</span></span></div>` : ""}
-    <div class="row"><button class="btn primary small" data-act="play-set" data-id="${esc(s.id)}">풀기</button>${s.example ? "" : `<button class="btn small" data-act="edit-set" data-id="${esc(s.id)}">문제 수정</button>`}${s.example ? "" : `<button class="btn ghost small danger" data-act="del-set" data-id="${esc(s.id)}">삭제</button>`}</div>
+    <div class="row"><button class="btn primary small" data-act="play-set" data-id="${esc(s.id)}">풀기</button><button class="btn small" data-act="print-set" data-id="${esc(s.id)}">인쇄</button>${s.example ? "" : `<button class="btn small" data-act="edit-set" data-id="${esc(s.id)}">문제 수정</button>`}${s.example ? "" : `<button class="btn ghost small danger" data-act="del-set" data-id="${esc(s.id)}">삭제</button>`}</div>
   </article>`;
   return `
   <header class="page-head"><div><p class="eyebrow">내 문제 세트</p><h1>만든 시험지 ${sets.length}개</h1><p class="lead">다시 풀면 점수가 기록되고, 틀린 문제는 오답노트에 쌓여요.</p></div><a class="btn primary" href="#new">+ 새 문제 만들기</a></header>
@@ -550,4 +550,33 @@ function viewEdit(){
   ${e.err ? `<p class="notice" role="alert" style="margin-bottom:16px">${esc(e.err)}</p>` : ""}
   <div class="stack">${e.questions.map(card).join("")}</div>
   <div class="row end" style="margin-top:18px"><button class="btn ghost" data-act="edit-cancel">취소</button><button class="btn primary" data-act="edit-save">저장 (${e.questions.length}문제)</button></div>`;
+}
+
+/* 시험지 인쇄 화면: 1쪽부터 시험지, 다음 쪽부터 정답과 해설 */
+function viewPrint(){
+  const st = findSet(S.printId); if (!st) return "";
+  const today = new Date(), date = `${today.getFullYear()}. ${today.getMonth() + 1}. ${today.getDate()}.`;
+  const item = q => {
+    let body = "";
+    if (q.type === "multiple_choice") body = `<ol class="p-opts">${q.options.map((o, i) => `<li><span>${CIRCLED[i]}</span> ${esc(o)}</li>`).join("")}</ol>`;
+    else if (q.type === "ox") body = `<p class="p-ox">( O / X )</p>`;
+    else if (q.type === "short_answer") body = `<p class="p-line">답: <span></span></p>`;
+    else body = `<div class="p-box" aria-label="답안 쓰는 칸"></div>`;
+    return `<li class="p-q"><p class="p-text">${esc(q.question)} <small>[${TYPE_LABEL[q.type]}]</small></p>${body}</li>`;
+  };
+  const ans = (q, i) => `<li><b>${q.type === "multiple_choice" ? `${CIRCLED[q.options.indexOf(q.answer)] || ""} ${esc(q.answer)}` : esc(q.answer)}</b>
+    <p>${esc(q.explanation)}</p>${q.type === "essay" && q.rubric ? `<p class="p-rubric">채점 기준: ${esc(q.rubric)}</p>` : ""}${q.source_quote ? `<p class="p-src">근거: ${esc(q.source_quote)}${q.source_page ? ` (자료 ${q.source_page}쪽)` : ""}</p>` : ""}</li>`;
+  return `
+  <div class="print-bar no-print"><button class="btn ghost" data-act="print-back">← 돌아가기</button><p class="muted small">인쇄 창에서 'PDF로 저장'을 고르면 PDF 파일로도 만들 수 있어요.</p><button class="btn primary" data-act="print-go">인쇄하기</button></div>
+  <article class="paper">
+    <header class="p-head"><h1>${esc(st.title)}</h1>
+      <dl class="p-meta"><div><dt>과목</dt><dd>${esc(st.subject || "기타")}</dd></div><div><dt>문항 수</dt><dd>${st.questions.length}문제</dd></div><div><dt>날짜</dt><dd>${date}</dd></div><div><dt>이름</dt><dd class="p-blank"></dd></div><div><dt>점수</dt><dd class="p-blank"></dd></div></dl>
+    </header>
+    <ol class="p-list">${st.questions.map(item).join("")}</ol>
+  </article>
+  <article class="paper p-answers">
+    <header class="p-head"><h1>${esc(st.title)} · 정답과 해설</h1></header>
+    <ol class="p-alist">${st.questions.map(ans).join("")}</ol>
+    <p class="p-foot">퀴즈메이트에서 만든 시험지</p>
+  </article>`;
 }

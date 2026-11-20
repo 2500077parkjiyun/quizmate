@@ -35,6 +35,7 @@ function render(){
   else if (r === "sets") html = viewSets();
   else if (r === "notes") html = viewNotes();
   else if (r === "data") html = viewData();
+  else if (r === "print") { if (!findSet(S.printId)) return go("sets"); html = viewPrint(); }
   else if (r === "edit") { if (!S.edit) return go("sets"); html = viewEdit(); }
   else html = viewHome();
   $("#main").innerHTML = html;
@@ -315,6 +316,9 @@ document.addEventListener("click", async e => {
       const list = String(b.dataset.ids || "").split(",").map(i => ({...Store.docs.get(i), id:i})).filter(w => w.question);
       startQuiz(questionsFromNotes(list), {mode:"review", title:"자주 틀리는 문제"}); break;
     }
+    case "print-set": S.printId = id; go("print"); break;
+    case "print-go": window.print(); break;
+    case "print-back": go("sets"); break;
     case "edit-set": {
       const st = findSet(id); if (!st || st.example) return;
       S.edit = {id, title:st.title, dirty:false, err:"", questions:clone(st.questions).map(q => q.type === "multiple_choice" ? {...q, ai:q.options.indexOf(q.answer)} : q)};
