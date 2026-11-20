@@ -89,20 +89,23 @@ const Rows = {
     material:d.material || "", attempt_count:d.attemptCount || 0, last_score:d.lastScore ?? null, best_score:d.bestScore ?? null, created_at:iso(d.createdAt)}),
   questionToRow:(setId, q, i) => ({id:q.id, set_id:setId, position:i + 1, type:q.type, question:q.question, options:q.options || [],
     answer:q.answer, acceptable_answers:q.acceptable_answers || [], rubric:q.rubric || "", explanation:q.explanation || "",
-    source_quote:q.source_quote || "", difficulty:q.difficulty || "medium"}),
+    source_quote:q.source_quote || "", difficulty:q.difficulty || "medium", source_page:q.source_page || null}),
   rowToSet:(r, qs) => ({kind:"set", title:r.title, subject:r.subject, difficulty:r.difficulty, types:r.types, material:r.material,
     attemptCount:r.attempt_count, lastScore:r.last_score, bestScore:r.best_score, createdAt:ms(r.created_at),
     questions:qs.sort((a, b) => a.position - b.position).map(q => ({id:q.id, type:q.type, question:q.question, options:q.options,
-      answer:q.answer, acceptable_answers:q.acceptable_answers, rubric:q.rubric, explanation:q.explanation, source_quote:q.source_quote, difficulty:q.difficulty}))}),
+      answer:q.answer, acceptable_answers:q.acceptable_answers, rubric:q.rubric, explanation:q.explanation, source_quote:q.source_quote, difficulty:q.difficulty,
+      ...(q.source_page ? {source_page:q.source_page} : {})}))}),
   attemptToRow:(id, d) => ({id, set_id:savedSetId(d.setId), title:d.title, subject:d.subject || "", mode:d.mode || "set", score:d.score,
     correct:d.correct, total:d.total, by_type:d.byType || {}, fallback:!!d.fallback, answers:d.answers || [], created_at:iso(d.createdAt)}),
   rowToAttempt:r => ({kind:"attempt", setId:r.set_id, title:r.title, subject:r.subject, mode:r.mode, score:r.score, correct:r.correct,
     total:r.total, byType:r.by_type, fallback:r.fallback, answers:r.answers, createdAt:ms(r.created_at)}),
   wrongToRow:(id, d) => ({id, set_id:savedSetId(d.setId), set_title:d.setTitle || "", subject:d.subject || "기타", question:d.question,
     wrong_answer:d.wrongAnswer ?? null, wrong_count:d.wrongCount || 0, correct_streak:d.correctStreak || 0, memo:d.memo || "",
-    status:d.status === "mastered" ? "mastered" : "active", created_at:iso(d.createdAt), updated_at:iso(d.updatedAt || d.createdAt)}),
+    status:d.status === "mastered" ? "mastered" : "active", created_at:iso(d.createdAt), updated_at:iso(d.updatedAt || d.createdAt),
+    review_stage:d.reviewStage || 0, next_review_at:d.nextReviewAt ? iso(d.nextReviewAt) : null}),
   rowToWrong:r => ({kind:"wrong", setId:r.set_id, setTitle:r.set_title, subject:r.subject, question:r.question, wrongAnswer:r.wrong_answer,
-    wrongCount:r.wrong_count, correctStreak:r.correct_streak, memo:r.memo, status:r.status, createdAt:ms(r.created_at), updatedAt:ms(r.updated_at)})
+    wrongCount:r.wrong_count, correctStreak:r.correct_streak, memo:r.memo, status:r.status, createdAt:ms(r.created_at), updatedAt:ms(r.updated_at),
+    reviewStage:r.review_stage, nextReviewAt:r.next_review_at ? ms(r.next_review_at) : null})
 };
 const TABLE = {set:"quiz_sets", attempt:"attempts", wrong:"wrong_notes"};
 

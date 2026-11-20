@@ -131,17 +131,22 @@ async function submitQuiz(force){
   const attempt = {kind:"attempt", setId:ctx.setId || null, title:ctx.title, subject:ctx.subject || "", mode:ctx.mode, createdAt:now, score, correct, total:qs.length, byType, fallback, answers:results};
 
   // 오답노트 반영 계획
-  const writes = []; let savedWrong = 0, mastered = 0;
+  const writes = []; let savedWrong = 0, mastered = 0, finalDone = 0;
   qs.forEach((x, i) => {
     const r = results[i], wid = "wn_" + x.id, ex = Store.docs.get(wid);
     if (!r.correct) {
       const d = ex ? clone(ex) : {kind:"wrong", question:{id:x.id, type:x.type, question:x.question, options:x.options || [], answer:x.answer, acceptable_answers:x.acceptable_answers || [], rubric:x.rubric || "", explanation:x.explanation, source_quote:x.source_quote || "", difficulty:x.difficulty || "medium"}, setId:x.setId || ctx.setId || null, setTitle:x.setTitle || ctx.title, subject:x.subject || ctx.subject || "기타", createdAt:now, wrongCount:0, correctStreak:0, memo:"", status:"active"};
       d.wrongCount = (d.wrongCount || 0) + 1; d.correctStreak = 0; d.status = "active"; d.wrongAnswer = r.user; d.updatedAt = now;
+      d.reviewStage = 0; d.nextReviewAt = now + REVIEW_DAYS[0] * DAY;              // 틀리면 1일 뒤 다시
       writes.push([wid, d]); savedWrong++;
     } else if (ex && ex.status !== "mastered") {
       const d = clone(ex); d.correctStreak = (d.correctStreak || 0) + 1; d.updatedAt = now;
-      if (d.correctStreak >= 2) { d.status = "mastered"; mastered++; }
+      if (d.correctStreak >= 2) { d.status = "mastered"; d.reviewStage = 2; d.nextReviewAt = now + REVIEW_DAYS[2] * DAY; mastered++; } // 완료 → 7일 뒤 최종 확인
+      else { d.reviewStage = 1; d.nextReviewAt = now + REVIEW_DAYS[1] * DAY; }  // 한 번 맞히면 3일 뒤
       writes.push([wid, d]);
+    } else if (ex && ex.status === "mastered" && ex.nextReviewAt && ex.nextReviewAt <= endOfToday()) {
+      const d = clone(ex); d.reviewStage = 3; d.nextReviewAt = null; d.updatedAt = now; // 7일 최종 확인 통과
+      writes.push([wid, d]); finalDone++;
     }
   });
   let setWrite = null;
@@ -150,7 +155,7 @@ async function submitQuiz(force){
     s.attemptCount = (s.attemptCount || 0) + 1; s.lastScore = score; s.bestScore = Math.max(s.bestScore ?? 0, score);
     setWrite = [ctx.setId, s];
   }
-  S.result = {attempt, questions:qs, savedWrong, mastered};
+  S.result = {attempt, questions:qs, savedWrong, mastered, finalDone};
   S.quiz = null; S.grading = false;
   go("result"); window.scrollTo(0, 0);
   if (score >= 80) setTimeout(confetti, 250);
@@ -305,6 +310,7 @@ document.addEventListener("click", async e => {
       startQuiz(qs.filter((_, i) => !a.answers[i].correct), {mode:"retry", setId:a.setId, title:a.title.replace(/ · 틀린 문제$/, "") + " · 틀린 문제", subject:a.subject});
       break;
     }
+    case "review-today": startQuiz(questionsFromNotes(getWrong().filter(isDue)), {mode:"review", title:"오늘의 복습"}); break;
     case "notes-retry-all": startQuiz(questionsFromNotes(getWrong().filter(w => w.status !== "mastered")), {mode:"review", title:"오답노트 복습"}); break;
     case "notes-retry-list": {
       const ids = [...document.querySelectorAll('[data-act="note-retry"]')].map(x => x.dataset.id);
@@ -320,6 +326,8 @@ document.addEventListener("click", async e => {
     case "note-master": case "note-restore": {
       const w = Store.docs.get(id); if (!w) return; const d = clone(w);
       d.status = act === "note-master" ? "mastered" : "active"; if (d.status === "active") d.correctStreak = 0; d.updatedAt = Date.now();
+      if (d.status === "mastered") { d.reviewStage = 2; d.nextReviewAt = d.updatedAt + REVIEW_DAYS[2] * DAY; }
+      else { d.reviewStage = 0; d.nextReviewAt = d.updatedAt + REVIEW_DAYS[0] * DAY; }
       await Store.put(id, d); toast(act === "note-master" ? "완료로 옮겼어요." : "복습 중으로 되돌렸어요."); break;
     }
     case "note-del":

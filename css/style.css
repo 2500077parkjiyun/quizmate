@@ -379,3 +379,8 @@ body.signed-out .nav, body.signed-out .tabbar, body.signed-out .top-r .btn.prima
 .linkbtn{background:none;border:0;padding:0;color:var(--primary);font-weight:700;text-decoration:underline;cursor:pointer}
 @media (max-width:800px){.auth{grid-template-columns:minmax(0,1fr)}}
 .auth-intro h1 .mark{background:linear-gradient(transparent 60%,var(--sun-bg) 60%);padding:0 4px}
+
+/* 복습 일정 */
+.pill.due{background:var(--sun-bg);color:var(--ink)}
+.pill:not(.bad):not(.ok):not(.due){background:var(--surface-2);color:var(--ink-2)}
+.resume.due{border-color:var(--sun);background:linear-gradient(90deg,var(--sun-s),var(--surface) 70%)}

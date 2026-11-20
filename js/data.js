@@ -42,6 +42,25 @@ const EXAMPLE_SET = {
   ]
 };
 
+/* ---------- 복습 일정 (1·3·7일) ----------
+   단계 0: 틀림 → 1일 뒤 / 단계 1: 한 번 맞힘 → 3일 뒤 / 단계 2: 두 번 연속 맞혀 완료 → 7일 뒤 최종 확인 / 단계 3: 최종 확인 끝 */
+const DAY = 24 * 60 * 60 * 1000;
+const REVIEW_DAYS = [1, 3, 7];
+const endOfToday = () => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); };
+const startOfDay = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+/* 다음 복습 날짜. 옛 기록처럼 날짜가 없는 복습 중 오답은 오늘 복습할 문제로 본다 */
+const nextReview = w => w.nextReviewAt ?? (w.status === "mastered" ? null : (w.updatedAt || w.createdAt || 0));
+const isDue = w => { const n = nextReview(w); return n != null && n <= endOfToday(); };
+function dueLabel(w){
+  const n = nextReview(w);
+  if (n == null) return w.status === "mastered" ? "7일 확인까지 끝" : "";
+  const days = Math.round((startOfDay(n) - startOfDay(Date.now())) / DAY);
+  const what = w.status === "mastered" ? "7일 최종 확인" : "복습";
+  if (days <= 0) return `오늘 ${what}`;
+  if (days === 1) return `내일 ${what}`;
+  return `${days}일 뒤 ${what}`;
+}
+
 /* ---------- helpers ---------- */
 const $ = (s, r=document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

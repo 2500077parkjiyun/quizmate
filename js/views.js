@@ -51,6 +51,9 @@ function viewHome(){
   const rate = solved ? Math.round(corr / solved * 100) : null;
   const sets = getSets();
   const scores = at.slice(0, 12).reverse().map(a => a.score);
+  const due = wr.filter(isDue);
+  const dueCard = due.length ? `<div class="card resume due"><div><b>오늘 복습할 문제 ${due.length}개</b><p class="muted small">틀린 문제는 1일 뒤, 한 번 맞히면 3일 뒤, 완료하면 7일 뒤에 다시 나와요.</p></div><button class="btn primary" data-act="review-today">오늘 복습 시작</button></div>`
+    : act.length ? `<div class="card resume"><div><b>오늘 복습은 끝났어요</b><p class="muted small">다음 복습: ${esc(dueLabel([...wr].filter(w => nextReview(w) != null).sort((a, b) => nextReview(a) - nextReview(b))[0] || {}))}</p></div><a class="btn" href="#notes">오답노트 보기</a></div>` : "";
   const resume = S.quiz ? `<div class="card resume"><div><b>풀던 문제가 있어요</b><p class="muted small">${esc(S.quiz.ctx.title)} · ${Object.values(S.quiz.answers).filter(v => String(v).trim()).length}/${S.quiz.questions.length}문제 답함</p></div><a class="btn primary" href="#quiz">이어서 풀기</a></div>` : "";
   const quick = [...sets.slice(0, 4), EXAMPLE_SET];
   return `
@@ -75,6 +78,7 @@ function viewHome(){
     <div class="card"><span class="n">3</span><div><h3>오답노트 복습</h3><p>틀린 문제를 모아 두 번 연속 맞힐 때까지 복습해요.</p></div></div>
   </section>` : ""}
   ${resume}
+  ${dueCard}
   <section class="tiles" aria-label="학습 요약">
     <div class="card tile"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span><div class="k">푼 문제</div><div class="v">${solved}<small>문제</small></div></div>
     <div class="card tile"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span><div class="k">전체 정답률</div><div class="v">${rate === null ? "–" : rate}<small>${rate === null ? "" : "%"}</small></div></div>
@@ -237,7 +241,8 @@ function viewResult(){
   const wrongCount = a.answers.filter(r => !r.correct).length;
   const msg = [];
   if (savedWrong) msg.push(`틀린 문제 ${savedWrong}개를 오답노트에 저장했어요.`);
-  if (mastered) msg.push(`오답 ${mastered}개를 두 번 연속 맞혀서 완료로 옮겼어요.`);
+  if (mastered) msg.push(`오답 ${mastered}개를 두 번 연속 맞혀서 완료로 옮겼어요. 7일 뒤에 한 번 더 확인해요.`);
+  if (S.result.finalDone) msg.push(`7일 최종 확인 ${S.result.finalDone}개를 통과했어요.`);
   const lvl = a.score >= 80 ? "good" : a.score >= 60 ? "mid" : "low";
   const cheer = a.score === 100 ? "만점이에요!" : a.score >= 80 ? "아주 잘했어요!" : a.score >= 60 ? "좋아요, 조금만 더!" : "오답노트로 다시 도전해요";
   return `
@@ -417,7 +422,8 @@ function viewNotes(){
   if (nf.subject !== "all") list = list.filter(w => (w.subject || "기타") === nf.subject);
   if (nf.set !== "all") list = list.filter(w => (w.setId || "-") === nf.set);
   if (nf.type !== "all") list = list.filter(w => w.question.type === nf.type);
-  list.sort(nf.sort === "most" ? (a, b) => (b.wrongCount - a.wrongCount) || ((b.updatedAt || 0) - (a.updatedAt || 0)) : (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  if (nf.sort === "due") list.sort((a, b) => (nextReview(a) ?? Infinity) - (nextReview(b) ?? Infinity));
+  else list.sort(nf.sort === "most" ? (a, b) => (b.wrongCount - a.wrongCount) || ((b.updatedAt || 0) - (a.updatedAt || 0)) : (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   const sel = (name, label, opts) => `<label class="f"><span>${label}</span><select class="field" data-ch="nf" name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${nf[name] === v ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
   let body;
   if (!all.length) body = `<div class="card empty"><span class="pen">아직 오답이 없어요 🎉</span>문제를 풀다가 틀리면 여기에 자동으로 모여요.<div class="row" style="justify-content:center;margin-top:16px"><a class="btn primary" href="#new">문제 만들기</a><button class="btn" data-act="play-set" data-id="example">예시 세트 풀기</button></div></div>`;
@@ -433,7 +439,7 @@ function viewNotes(){
     ${sel("subject", "과목", [["all", "전체"], ...subjects.map(s => [s, s])])}
     ${sel("set", "문제 세트", [["all", "전체"], ...[...setMap].map(([k, v]) => [k, v])])}
     ${sel("type", "유형", [["all", "전체"], ...TYPES.map(t => [t, TYPE_LABEL[t]])])}
-    ${sel("sort", "정렬", [["recent", "최근 틀린 순"], ["most", "많이 틀린 순"]])}
+    ${sel("sort", "정렬", [["recent", "최근 틀린 순"], ["most", "많이 틀린 순"], ["due", "복습 날짜 순"]])}
     <span class="grow"></span>
     ${nf.tab === "active" && list.length ? `<button class="btn primary" data-act="notes-retry-list">보이는 ${list.length}문제 다시 풀기</button>` : ""}
   </div>` : ""}
@@ -448,6 +454,7 @@ function noteCard(w){
       <div class="chips"><span class="chip t-${q.type}">${TYPE_LABEL[q.type]}</span><span class="chip soft">${esc(w.subject || "기타")}</span><span class="chip soft">${esc(w.setTitle || "")}</span></div>
       <div class="note-stats">
         ${w.status === "mastered" ? `<span class="pill ok">완료</span>` : `<span class="streak" title="두 번 연속 맞히면 완료">연속 정답 <i class="${streak >= 1 ? "f" : ""}"></i><i class="${streak >= 2 ? "f" : ""}"></i></span>`}
+        ${dueLabel(w) ? `<span class="pill ${isDue(w) ? "due" : ""}">${esc(dueLabel(w))}</span>` : ""}
         <span class="pill bad">틀린 횟수 ${w.wrongCount}</span>
         <span class="muted small">${fmtDate(w.updatedAt || w.createdAt)}</span>
       </div>
