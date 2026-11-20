@@ -3,6 +3,45 @@
 /* ---------- views ---------- */
 function loadingView(){ return `<div class="empty"><div class="spin"></div>불러오는 중…</div>`; }
 
+/* 로그인 · 회원가입 화면 */
+function viewLogin(){
+  const a = S.auth, up = a.mode === "signup";
+  if (!sb) return `<div class="card empty">로그인 도구(Supabase)를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.<div class="row" style="justify-content:center;margin-top:16px"><button class="btn" data-act="guest">체험 모드로 둘러보기</button></div></div>`;
+  return `
+  <section class="auth">
+    <div class="auth-intro">
+      <p class="eyebrow">AI 학습 도우미</p>
+      <h1>공부한 자료로<br><span class="mark">나만의 시험지</span>를</h1>
+      <p class="lead">교과서 내용이나 필기를 넣으면 AI가 문제를 만들고, 채점과 오답노트까지 챙겨 줘요. 로그인하면 내 기록이 Supabase 데이터베이스에 안전하게 저장돼요.</p>
+      <ul class="facts">
+        <li>객관식, O/X, 단답형, 서술형 4가지 유형</li>
+        <li>문제마다 해설과 자료 속 근거 문장</li>
+        <li>틀린 문제는 오답노트에 자동 저장, 두 번 연속 맞히면 완료</li>
+      </ul>
+    </div>
+    <div class="card auth-card">
+      <div class="seg" role="tablist" style="margin-bottom:18px">
+        <button role="tab" type="button" aria-selected="${!up}" class="${up ? "" : "on"}" data-act="auth-mode" data-v="login">로그인</button>
+        <button role="tab" type="button" aria-selected="${up}" class="${up ? "on" : ""}" data-act="auth-mode" data-v="signup">회원가입</button>
+      </div>
+      ${a.info ? `<p class="notice info" style="margin-bottom:14px">${esc(a.info)}</p>` : ""}
+      ${a.err ? `<p class="notice" role="alert" style="margin-bottom:14px">${esc(a.err)}</p>` : ""}
+      <form id="auth-form" class="auth-form" novalidate>
+        <label class="lbl" for="au-email">이메일</label>
+        <input id="au-email" class="field" name="email" type="email" autocomplete="email" required value="${esc(a.email)}" placeholder="you@example.com">
+        ${up ? `<label class="lbl" for="au-name">이름 (화면에 보여요)</label>
+        <input id="au-name" class="field" name="dname" type="text" autocomplete="nickname" maxlength="20" placeholder="예: 지윤">` : ""}
+        <label class="lbl" for="au-pw">비밀번호</label>
+        <input id="au-pw" class="field" name="password" type="password" autocomplete="${up ? "new-password" : "current-password"}" required minlength="6" placeholder="6자 이상">
+        ${up ? `<label class="lbl" for="au-pw2">비밀번호 확인</label>
+        <input id="au-pw2" class="field" name="password2" type="password" autocomplete="new-password" required minlength="6">` : ""}
+        <button class="btn primary big" type="submit" ${a.busy ? "disabled" : ""}>${a.busy ? "잠시만요…" : up ? "가입하기" : "로그인"}</button>
+      </form>
+      <p class="muted small" style="margin-top:16px;text-align:center">가입 없이 먼저 써 보고 싶다면 <button class="linkbtn" data-act="guest">체험 모드로 둘러보기</button><br>(체험 모드 기록은 이 브라우저에만 저장돼요)</p>
+    </div>
+  </section>`;
+}
+
 function viewHome(){
   if (!S.ready) return loadingView();
   const at = getAttempts(), wr = getWrong();
@@ -250,27 +289,30 @@ function viewData(){
   const cloud = Store.mode === "cloud";
   const total = sets.length + at.length + wr.length;
   const bytes = new Blob([JSON.stringify(Object.fromEntries(Store.docs))]).size;
+  const qn = sets.reduce((n, s) => n + (s.questions?.length || 0), 0);
   return `
   <header class="page-head"><div><p class="eyebrow">내 데이터</p><h1>내 학습 기록은 이렇게 저장돼요</h1><p class="lead">문제 세트, 점수 기록, 오답노트는 사용자마다 따로 저장되고 본인만 볼 수 있어요. 언제든 파일로 내려받거나 지울 수 있어요.</p></div></header>
   <div class="stack">
     <section class="card">
-      <h2>저장 위치: ${cloud ? "내 Claude 계정의 개인 저장 공간" : "이 브라우저 (Claude에 로그인하면 계정에 저장돼요)"}</h2>
+      <h2>저장 위치: ${cloud ? `Supabase 데이터베이스 <span class="muted small">(${esc(Auth.user.email)})</span>` : "이 브라우저 (체험 모드 · 로그인하면 Supabase에 저장돼요)"}</h2>
       <div class="flow">
-        <div class="st"><b>1. 로그인</b>Claude 계정으로 사용자를 확인해요. 비밀번호는 퀴즈메이트가 받지 않아요.</div>
-        <div class="st"><b>2. 사용자 ID</b>플랫폼이 사용자마다 고유한 ID를 줘요. 이름이나 이메일은 저장하지 않아요.</div>
-        <div class="st"><b>3. 개인 경로</b><code>data/users/&lt;내 ID&gt;/</code> 아래에만 저장해요.</div>
-        <div class="st"><b>4. 접근 규칙</b>이 경로는 본인만 읽고 쓸 수 있어요. 페이지를 만든 사람도 볼 수 없어요.</div>
+        <div class="st"><b>1. 로그인</b>Supabase Auth가 이메일과 비밀번호를 확인해요. 비밀번호는 암호화되어 저장되고 퀴즈메이트 코드는 볼 수 없어요.</div>
+        <div class="st"><b>2. 사용자 ID</b>가입하면 사용자마다 고유한 ID(uuid)가 생기고, 내가 저장하는 모든 행에 이 ID가 붙어요.</div>
+        <div class="st"><b>3. 테이블 저장</b>문제 세트, 문제, 풀이 기록, 오답노트를 PostgreSQL 테이블에 나눠 저장해요.</div>
+        <div class="st"><b>4. 접근 규칙 (RLS)</b>"로그인한 사람의 ID = 행의 user_id"일 때만 읽고 쓸 수 있어요. 다른 사람의 기록은 보이지 않아요.</div>
       </div>
     </section>
     <section class="card">
       <h2>데이터 구조</h2>
-      <p class="muted small" style="margin:-6px 0 12px">문서형 데이터베이스에 문서 세 종류로 나눠 저장해요. 지금 저장된 문서는 ${total}개(약 ${Math.max(1, Math.round(bytes / 1024))}KB)예요.</p>
+      <p class="muted small" style="margin:-6px 0 12px">관계형 데이터베이스(PostgreSQL)의 테이블 5개로 나눠 저장해요. 지금 내 기록은 약 ${Math.max(1, Math.round(bytes / 1024))}KB예요.</p>
       <div class="tablewrap"><table class="schema">
-        <thead><tr><th>문서 종류</th><th>저장 개수</th><th>주요 항목</th><th>언제 만들어지나요</th></tr></thead>
+        <thead><tr><th>테이블</th><th>내 행 수</th><th>주요 열</th><th>언제 저장되나요</th></tr></thead>
         <tbody>
-          <tr><td><b>문제 세트</b><br><code>set_…</code></td><td class="num">${sets.length}</td><td>제목, 과목, 난이도, 원본 자료, 문제 목록(유형·보기·정답·해설·근거 문장), 최근·최고 점수</td><td>AI가 문제를 만들었을 때</td></tr>
-          <tr><td><b>풀이 기록</b><br><code>att_…</code></td><td class="num">${at.length}</td><td>점수, 맞힌 개수, 유형별 정답 수, 문제별 내 답·정답 여부·AI 피드백, 푼 시각</td><td>제출하고 채점했을 때</td></tr>
-          <tr><td><b>오답노트</b><br><code>wn_…</code></td><td class="num">${wr.length}</td><td>틀린 문제, 내가 쓴 오답, 틀린 횟수, 연속 정답 수, 메모, 상태(복습 중·완료)</td><td>틀렸을 때 생기고, 다시 풀 때마다 바뀜</td></tr>
+          <tr><td><b>회원</b><br><code>profiles</code></td><td class="num">${cloud ? 1 : 0}</td><td>사용자 ID, 화면에 보이는 이름, 가입 시각</td><td>회원가입할 때 자동으로</td></tr>
+          <tr><td><b>문제 세트</b><br><code>quiz_sets</code></td><td class="num">${sets.length}</td><td>제목, 과목, 난이도, 원본 자료, 푼 횟수, 최근·최고 점수</td><td>AI가 문제를 만들었을 때</td></tr>
+          <tr><td><b>문제</b><br><code>questions</code></td><td class="num">${qn}</td><td>세트 ID(외래 키), 순서, 유형, 보기, 정답, 해설, 근거 문장</td><td>세트와 함께. 세트를 지우면 같이 지워짐</td></tr>
+          <tr><td><b>풀이 기록</b><br><code>attempts</code></td><td class="num">${at.length}</td><td>점수, 맞힌 개수, 유형별 정답 수, 문제별 내 답·AI 피드백</td><td>제출하고 채점했을 때</td></tr>
+          <tr><td><b>오답노트</b><br><code>wrong_notes</code></td><td class="num">${wr.length}</td><td>틀린 문제, 내 오답, 틀린 횟수, 연속 정답 수, 메모, 상태</td><td>틀렸을 때 생기고, 다시 풀 때마다 바뀜</td></tr>
         </tbody>
       </table></div>
     </section>
@@ -301,12 +343,13 @@ function backupJson(){
 async function exportData(){
   const json = backupJson();
   const d = new Date(), name = `quizmate-backup-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}.json`;
-  let dl = null;
-  if (window.claude?.use) { try { dl = await claude.use("downloads"); } catch (e) {} }
-  if (dl) {
-    try { await dl.save({filename:name, data:json}); toast("백업 파일을 저장했어요."); return; }
-    catch (e) { if (e && e.code === "declined") return; }
-  }
+  try {
+    const url = URL.createObjectURL(new Blob([json], {type:"application/json"}));
+    const link = Object.assign(document.createElement("a"), {href:url, download:name});
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("백업 파일을 내려받았어요."); return;
+  } catch (e) {}
   try { await navigator.clipboard.writeText(json); toast("이 화면에서는 파일을 저장할 수 없어서 백업 내용을 클립보드에 복사했어요."); }
   catch (e) { toast("백업 파일을 만들지 못했어요.", "bad"); }
 }

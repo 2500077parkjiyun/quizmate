@@ -59,5 +59,6 @@ const S = {
   form:{tab:"text", text:"", title:"", subject:"", count:10, diff:"medium",
         types:{multiple_choice:true, ox:true, short_answer:true, essay:false},
         fileNote:"", fileErr:"", extracting:false},
-  nf:{tab:"active", subject:"all", set:"all", type:"all", sort:"recent"}
+  nf:{tab:"active", subject:"all", set:"all", type:"all", sort:"recent"},
+  auth:{mode:"login", busy:false, err:"", info:"", email:""}
 };

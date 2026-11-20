@@ -13,16 +13,23 @@ function updateNav(r){
   $("#tabbar").innerHTML = ROUTES.map(x => item(x, true)).join("");
 }
 function updateStatus(){
-  const st = Store.mode === "cloud" ? ["ok","계정에 저장 중"] : Store.mode === "local" ? ["","이 브라우저에 저장"] : ["","저장소 연결 중"];
+  const st = Store.mode === "cloud" ? ["ok","Supabase에 저장 중"] : Store.mode === "local" ? ["","체험 모드 · 이 브라우저에 저장"]
+    : Store.mode === "error" ? ["no","DB 연결 실패"] : Store.mode === "signedout" ? ["","로그인 필요"] : ["","DB 연결 중"];
   const ai = !S.aiChecked ? ["","AI 확인 중"] : aiReady() ? ["ok","AI 연결됨"] : ["no","AI 사용 불가"];
-  $("#status").innerHTML = `<span><i class="dot ${st[0]}"></i>${st[1]}</span><span><i class="dot ${ai[0]}"></i>${ai[1]}</span>`;
+  const who = Auth.user
+    ? `<button class="btn ghost small" data-act="logout" title="${esc(Auth.user.email)}">${esc(Auth.name)} · 로그아웃</button>`
+    : Store.mode === "local" && sb ? `<button class="btn ghost small" data-act="go-login">로그인</button>` : "";
+  $("#status").innerHTML = `<span><i class="dot ${st[0]}"></i>${st[1]}</span><span><i class="dot ${ai[0]}"></i>${ai[1]}</span>${who}`;
 }
 
 function render(){
   S.pendingRender = false;
   const r = route();
+  document.body.classList.toggle("signed-out", Auth.needLogin());
   let html;
-  if (r === "quiz") { if (!S.quiz) return go("home"); html = viewQuiz(); }
+  if (!Auth.checked) html = loadingView();
+  else if (Auth.needLogin()) html = viewLogin();
+  else if (r === "quiz") { if (!S.quiz) return go("home"); html = viewQuiz(); }
   else if (r === "result") { if (!S.result) return go("home"); html = viewResult(); }
   else if (r === "new") html = viewNew();
   else if (r === "sets") html = viewSets();
@@ -324,6 +331,14 @@ document.addEventListener("click", async e => {
       if (await ask({title:"이 오답을 삭제할까요?", body:"메모도 함께 지워져요.", ok:"삭제", danger:true})) { await Store.del(id); toast("오답을 삭제했어요."); }
       break;
     case "note-similar": makeSimilar(id); break;
+    case "auth-mode": S.auth.mode = v; S.auth.err = ""; S.auth.info = ""; render(); break;
+    case "guest": Auth.startGuest(); await Store.init(); go("home"); toast("체험 모드예요. 기록은 이 브라우저에만 저장돼요."); break;
+    case "go-login": try { localStorage.removeItem(GUEST_KEY); } catch (err) {} S.auth.mode = "login"; Store.mode = "signedout"; updateStatus(); render(); break;
+    case "logout":
+      if (await ask({title:"로그아웃할까요?", body:"기록은 Supabase에 저장되어 있어서 다시 로그인하면 그대로 보여요.", ok:"로그아웃"})) {
+        S.quiz = null; S.result = null; await Auth.signOut(); toast("로그아웃했어요.");
+      }
+      break;
     case "export": exportData(); break;
     case "wipe": wipeData(); break;
     case "sim-close": delete S.similar[id]; render(); break;
@@ -386,15 +401,32 @@ document.addEventListener("keydown", e => {
 });
 window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
 
+/* 로그인·회원가입 폼: 수업 4장의 form 요소를 쓰고, 제출은 JavaScript가 Supabase로 보낸다 */
+document.addEventListener("submit", async e => {
+  const form = e.target; if (form.id !== "auth-form") return;
+  e.preventDefault();
+  const a = S.auth; if (a.busy) return;
+  const email = form.email.value.trim(), password = form.password.value, name = form.dname ? form.dname.value.trim() : "";
+  a.email = email; a.err = ""; a.info = "";
+  if (a.mode === "signup" && password !== form.password2.value) { a.err = "비밀번호 두 칸이 서로 달라요."; return render(); }
+  a.busy = true; render();
+  try {
+    if (a.mode === "login") { await Auth.signIn(email, password); toast("로그인했어요."); }
+    else {
+      const {needConfirm} = await Auth.signUp(email, password, name);
+      if (needConfirm) { a.mode = "login"; a.info = `${email}로 인증 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인해 주세요.`; }
+      else toast("가입을 마쳤어요. 환영해요!");
+    }
+  } catch (err) { a.err = authErr(err); }
+  a.busy = false;
+  if (Auth.needLogin()) render();
+});
+
 /* ---------- boot ---------- */
-function start(data){
-  if (data && typeof data === "object") {
-    if (data.quiz) S.quiz = data.quiz;
-    if (data.result) S.result = data.result;
-    if (data.form) Object.assign(S.form, data.form, {extracting:false});
-  }
+async function start(){
   updateNav(route()); updateStatus(); render();
-  Store.init(); initAI();
+  try { await Auth.init(); } catch (e) { Auth.checked = true; }
+  await Store.init();
+  initAI();
 }
-try { window.claude?.hot?.snapshot?.(() => ({quiz:S.quiz, result:S.result, form:{...S.form, extracting:false}})); } catch (e) {}
-window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+start();
