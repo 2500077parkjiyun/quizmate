@@ -84,6 +84,8 @@ function normalizeQuestions(arr, allowed){
     const q = {type, question, options:[], answer:"", acceptable_answers:[], rubric:"",
       explanation:String(raw.explanation || "").trim(), source_quote:String(raw.source_quote || "").trim().slice(0, 200),
       difficulty:["easy","medium","hard"].includes(raw.difficulty) ? raw.difficulty : "medium"};
+    const pg = Number(raw.source_page);
+    if (Number.isInteger(pg) && pg > 0) q.source_page = pg;
     let ans = String(raw.answer ?? "").trim();
     if (type === "multiple_choice") {
       const opts = (Array.isArray(raw.options) ? raw.options : []).map(o => String(o ?? "").replace(/^\s*(?:[①②③④⑤]|[1-5A-Ea-e][.)]|\([1-5A-Ea-e]\))\s*/, "").trim()).filter(Boolean).slice(0, 5);

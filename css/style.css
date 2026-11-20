@@ -461,3 +461,8 @@ body.signed-out .nav, body.signed-out .tabbar, body.signed-out .top-r .btn.prima
 :root[data-theme="dark"] .tile:nth-child(1){color:#A9D6FF} :root[data-theme="dark"] .tile:nth-child(2){color:#8DE8C6}
 :root[data-theme="dark"] .tile:nth-child(3){color:#FFB4B4} :root[data-theme="dark"] .tile:nth-child(4){color:#CBBEFF}
 :root[data-theme="dark"] .memo textarea{color:#B9C2FF;border-color:#5A4A1C}
+
+/* 근거 쪽 번호, AI 검토 체크 */
+.pg{display:inline-block;margin-left:4px;font-size:12px;font-weight:700;color:var(--primary);background:var(--primary-s);padding:1px 8px;border-radius:999px;white-space:nowrap}
+.check-line{display:flex;align-items:flex-start;gap:10px;margin-top:16px;cursor:pointer}
+.check-line input{width:20px;height:20px;margin-top:2px;accent-color:var(--primary);flex:none}

@@ -76,7 +76,7 @@ const S = {
   ready:false, quiz:null, result:null, gen:null, grading:false,
   similar:{}, simBusy:{}, pendingRender:false,
   form:{tab:"text", text:"", title:"", subject:"", count:10, diff:"medium",
-        types:{multiple_choice:true, ox:true, short_answer:true, essay:false},
+        types:{multiple_choice:true, ox:true, short_answer:true, essay:false}, verify:true,
         fileNote:"", fileErr:"", extracting:false},
   nf:{tab:"active", subject:"all", set:"all", type:"all", sort:"recent"},
   auth:{mode:"login", busy:false, err:"", info:"", email:""}

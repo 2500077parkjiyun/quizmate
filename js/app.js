@@ -175,8 +175,11 @@ async function generate(){
   S.gen = {busy:true, made:0, total:f.count, ctl, err:""};
   renderGenBar();
   try {
-    const out = await aiCall("generate", {text:f.text.trim(), count:f.count, difficulty:f.diff, types:allowed}, ctl.signal);
+    const out = await aiCall("generate", {text:f.text.trim(), count:f.count, difficulty:f.diff, types:allowed, verify:f.verify}, ctl.signal);
     const list = normalizeQuestions(out && out.questions, allowed).slice(0, f.count);
+    // 근거 쪽 번호는 자료에 실제로 [N쪽] 표시가 있을 때만 남긴다
+    for (const q of list) if (q.source_page && !f.text.includes(`[${q.source_page}쪽]`)) delete q.source_page;
+    const rv = out && out.review;
     if (!list.length) throw {code:"invalid_json"};
     const id = mkId("set");
     const title = f.title.trim() || (f.text.trim().split("\n")[0].slice(0, 24) + (f.text.trim().split("\n")[0].length > 24 ? "…" : ""));
@@ -184,7 +187,7 @@ async function generate(){
       material:f.text.trim().slice(0, MAX_CHARS), questions:list.map((q, i) => ({...q, id:`${id}-q${i + 1}`})), attemptCount:0, lastScore:null, bestScore:null};
     S.gen = null;
     await Store.put(id, set);
-    toast(`문제 ${list.length}개를 만들었어요${list.length < f.count ? ` (형식이 맞지 않은 ${f.count - list.length}개는 뺐어요)` : ""}`);
+    toast(`문제 ${list.length}개를 만들었어요${rv && !rv.error ? ` · AI 검토: ${rv.fixed}개 고침, ${rv.dropped}개 뺌` : ""}${rv && rv.error ? " · AI 검토는 실패해서 건너뛰었어요" : ""}`);
     S.form.title = ""; S.form.fileNote = "";
     startSet(id);
   } catch (e) {
@@ -224,7 +227,8 @@ async function extractPdf(file){
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const tc = await page.getTextContent();
-    out += tc.items.map(it => it.str + (it.hasEOL ? "\n" : "")).join("") + "\n\n";
+    // 쪽마다 [3쪽] 표시를 넣어서, AI가 근거 문장이 몇 쪽에 있는지 알려 줄 수 있게 한다
+    out += `[${p}쪽]\n` + tc.items.map(it => it.str + (it.hasEOL ? "\n" : "")).join("") + "\n\n";
   }
   return out;
 }
@@ -446,6 +450,7 @@ document.addEventListener("change", e => {
   else if (k === "count") { S.form.count = +el.value; S.gen = null; renderGenBar(); }
   else if (k === "diff") { S.form.diff = el.value; S.gen = null; renderGenBar(); }
   else if (k === "type") { S.form.types[el.value] = el.checked; S.gen = null; renderGenBar(); }
+  else if (k === "verify") { S.form.verify = el.checked; S.gen = null; renderGenBar(); }
 });
 document.addEventListener("focusout", () => { setTimeout(() => { if (S.pendingRender && !($("#main").contains(document.activeElement) && /^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName))) render(); }, 150); });
 document.addEventListener("dragover", e => { const d = e.target.closest && e.target.closest("#drop"); if (d) { e.preventDefault(); d.classList.add("over"); } });

@@ -167,7 +167,7 @@ function viewNew(){
   let bar;
   if (g && g.busy) {
     const pct = Math.min(100, Math.round(g.made / g.total * 100));
-    bar = `<div class="genprog" role="status"><b>${g.made ? `AI가 문제를 쓰고 있어요… ${Math.min(g.made, g.total)} / ${g.total}` : "AI가 자료를 읽고 있어요… (보통 30초~1분)"}</b><div class="bar ${g.made ? "" : "indef"}"><span style="${g.made ? `width:${pct}%` : ""}"></span></div></div><button class="btn" data-act="stop-gen">중단</button>`;
+    bar = `<div class="genprog" role="status"><b>${g.made ? `AI가 문제를 쓰고 있어요… ${Math.min(g.made, g.total)} / ${g.total}` : (f.verify ? "AI가 문제를 만들고 한 번 더 검토하고 있어요… (보통 30초~1분)" : "AI가 자료를 읽고 문제를 만들고 있어요… (보통 15~40초)")}</b><div class="bar ${g.made ? "" : "indef"}"><span style="${g.made ? `width:${pct}%` : ""}"></span></div></div><button class="btn" data-act="stop-gen">중단</button>`;
   } else {
     bar = `<div class="why" id="gen-why">${g && g.err ? `<span style="color:var(--pen);font-weight:600">${esc(g.err)}</span>` : esc(why || `${f.count}문제 · ${DIFF_LABEL[f.diff]} · ${TYPES.filter(t => f.types[t]).map(t => TYPE_LABEL[t]).join(", ")}`)}</div><button class="btn primary big" id="gen-btn" data-act="generate" ${why ? "disabled" : ""}>${g && g.err ? "다시 시도" : "문제 생성하기"}</button>`;
   }
@@ -212,6 +212,7 @@ function viewNew(){
       <fieldset class="pick" style="margin-top:18px"><legend class="lbl">문제 유형 (여러 개 고를 수 있어요)</legend>
         <div class="row">${TYPES.map(t => `<label class="toggle" data-v="${t}"><input type="checkbox" name="types" value="${t}" data-ch="type" ${f.types[t] ? "checked" : ""}><span class="box" aria-hidden="true">✓</span>${TYPE_LABEL[t]}</label>`).join("")}</div>
       </fieldset>
+      <label class="check-line"><input type="checkbox" data-ch="verify" ${f.verify ? "checked" : ""}> <span><b>AI가 한 번 더 검토하기</b> <span class="muted small">정답 오류·겹치는 문제를 고치거나 빼요 (10~30초 더 걸려요)</span></span></label>
     </section>
     <section class="card gen-bar" id="genbar">${bar}</section>
   </div>`;
@@ -310,7 +311,7 @@ function viewResult(){
         <details class="expl" ${r.correct ? "" : "open"}><summary>해설</summary>
           <p>${esc(q.explanation)}</p>
           ${isEssay && q.rubric ? `<p class="rubric">채점 기준\n${esc(q.rubric)}</p>` : ""}
-          ${q.source_quote ? `<p class="src"><span class="hl">${esc(q.source_quote)}</span></p>` : ""}
+          ${q.source_quote ? `<p class="src"><span class="hl">${esc(q.source_quote)}</span>${q.source_page ? ` <span class="pg">자료 ${q.source_page}쪽</span>` : ""}</p>` : ""}
         </details>
       </div>
     </li>`;
@@ -496,7 +497,7 @@ function noteCard(w){
       <div><dt>내가 쓴 답</dt><dd class="bad ${q.type === "essay" || q.type === "ox" ? "nostrike" : ""}">${esc(w.wrongAnswer) || "(답 없음)"}</dd></div>
       <div><dt>${q.type === "essay" ? "모범답안" : "정답"}</dt><dd class="ok">${esc(q.answer)}</dd></div>
     </dl>
-    <div class="expl"><p>${esc(q.explanation)}</p>${q.source_quote ? `<p class="src" style="margin-top:6px"><span class="hl">${esc(q.source_quote)}</span></p>` : ""}</div>
+    <div class="expl"><p>${esc(q.explanation)}</p>${q.source_quote ? `<p class="src" style="margin-top:6px"><span class="hl">${esc(q.source_quote)}</span>${q.source_page ? ` <span class="pg">자료 ${q.source_page}쪽</span>` : ""}</p>` : ""}</div>
     <div class="memo">
       <label for="memo-${esc(w.id)}">내 메모: 왜 틀렸는지 적어 두세요</label>
       <textarea id="memo-${esc(w.id)}" class="field" rows="2" data-in="memo" placeholder="예: 녹말과 설탕이 바뀌는 때를 헷갈림">${esc(w.memo || "")}</textarea>
