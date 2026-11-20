@@ -15,7 +15,8 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+// 붙여 넣을 때 섞여 들어간 앞뒤 공백·따옴표는 지운다
+const API_KEY = (Deno.env.get("ANTHROPIC_API_KEY") ?? "").trim().replace(/^["']|["']$/g, "").trim();
 // 모델 이름은 시크릿 ANTHROPIC_MODEL로 바꿀 수 있다. (예: 비용을 줄이려면 claude-haiku-5-5)
 const MODEL = Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-5-5";
 
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
     const action = String(body.action ?? "");
 
     // 2) 기능별 처리
-    if (action === "ping") return json({ data: { configured: !!API_KEY, model: MODEL } });
+    if (action === "ping") return json({ data: { configured: !!API_KEY, model: MODEL, keyLooksRight: API_KEY.startsWith("sk-ant-") } });
 
     if (action === "generate") {
       const text = String(body.text ?? "").trim();
