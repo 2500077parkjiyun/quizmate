@@ -4,6 +4,14 @@
 
 ## 2026-11-20
 
+### Supabase 데이터베이스 만들기
+- **바뀐 것:** Supabase 프로젝트에 테이블 5개를 만듦 (`supabase/migrations/20261120000001_init_schema.sql`)
+  - `profiles` 회원 정보, `quiz_sets` 문제 세트, `questions` 문제, `attempts` 풀이 기록, `wrong_notes` 오답노트
+  - 모든 테이블에 RLS(행 수준 보안)를 켜서 로그인한 본인의 데이터만 읽고 쓸 수 있게 함
+  - 회원가입하면 `profiles`에 한 줄이 자동으로 생기는 트리거
+- **이유:** 처음 기능 명세의 "Supabase 로그인과 데이터베이스"를 직접 구축하기 위해. 이전에는 Claude 페이지의 저장 공간을 빌려 썼음
+- **확인:** Supabase 보안 점검(advisors)에서 경고 0개
+
 ### 파일 구조 정리 (HTML·CSS·JS 분리)
 - **바뀐 것:** `index.html` 한 파일(1,472줄)에 섞여 있던 디자인과 동작 코드를 역할별 파일로 나눔
   - `css/style.css`: 디자인
