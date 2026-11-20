@@ -1,0 +1,9 @@
+# 운영체제·편집기 파일
+.DS_Store
+Thumbs.db
+.vscode/
+
+# 비밀 값은 절대 올리지 않기
+.env
+.env.*
+supabase/.temp/

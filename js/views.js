@@ -1,0 +1,430 @@
+"use strict";
+/* 화면(뷰) 그리기 함수 */
+/* ---------- views ---------- */
+function loadingView(){ return `<div class="empty"><div class="spin"></div>불러오는 중…</div>`; }
+
+function viewHome(){
+  if (!S.ready) return loadingView();
+  const at = getAttempts(), wr = getWrong();
+  const act = wr.filter(w => w.status !== "mastered"), mas = wr.length - act.length;
+  const solved = at.reduce((s, a) => s + (a.total || 0), 0);
+  const corr = at.reduce((s, a) => s + (a.correct || 0), 0);
+  const rate = solved ? Math.round(corr / solved * 100) : null;
+  const sets = getSets();
+  const scores = at.slice(0, 12).reverse().map(a => a.score);
+  const resume = S.quiz ? `<div class="card resume"><div><b>풀던 문제가 있어요</b><p class="muted small">${esc(S.quiz.ctx.title)} · ${Object.values(S.quiz.answers).filter(v => String(v).trim()).length}/${S.quiz.questions.length}문제 답함</p></div><a class="btn primary" href="#quiz">이어서 풀기</a></div>` : "";
+  const quick = [...sets.slice(0, 4), EXAMPLE_SET];
+  return `
+  <section class="hero">
+    <div>
+      <p class="eyebrow">AI 학습 도우미</p>
+      <h1>${act.length ? `복습할 오답이<br><span class="c">${act.length}문제</span> 남았어요` : at.length ? `오답을 모두<br><span class="mark">정리했어요!</span>` : `공부한 자료로<br><span class="mark">나만의 시험지</span>를`}</h1>
+      <p class="lead">${at.length ? "틀린 문제는 오답노트에 자동으로 모이고, 두 번 연속 맞히면 완료로 옮겨져요." : "교과서 내용이나 필기를 넣으면 AI가 객관식, O/X, 단답형, 서술형 문제를 만들고 채점과 오답노트까지 챙겨 줘요."}</p>
+      <div class="row"><a class="btn primary big" href="#new">+ 새 문제 만들기</a>${act.length ? `<button class="btn big" data-act="notes-retry-all">오답 다시 풀기</button>` : `<button class="btn big" data-act="play-set" data-id="example">예시 문제 풀어 보기</button>`}</div>
+    </div>
+    <div class="art" aria-hidden="true">
+      <div class="fc a"><small>객관식</small>광합성 장소는?<div class="o"><i>1</i>미토콘드리아</div><div class="o s"><i>2</i>엽록체</div><div class="o"><i>3</i>액포</div></div>
+      <div class="fc b">O</div>
+      <div class="fc c"><small>${rate === null ? "오늘의 목표" : "전체 정답률"}</small><b>${rate === null ? "100점!" : rate + "%"}</b></div>
+      <div class="fc d">X</div>
+      <div class="fc e">✓</div>
+    </div>
+  </section>
+  ${at.length < 3 ? `<section class="how" aria-label="사용 방법">
+    <div class="card"><span class="n">1</span><div><h3>자료 넣기</h3><p>글을 붙여 넣거나 PDF·TXT·사진을 올려요.</p></div></div>
+    <div class="card"><span class="n">2</span><div><h3>문제 풀고 채점</h3><p>AI가 만든 문제를 풀면 해설과 함께 바로 채점돼요.</p></div></div>
+    <div class="card"><span class="n">3</span><div><h3>오답노트 복습</h3><p>틀린 문제를 모아 두 번 연속 맞힐 때까지 복습해요.</p></div></div>
+  </section>` : ""}
+  ${resume}
+  <section class="tiles" aria-label="학습 요약">
+    <div class="card tile"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span><div class="k">푼 문제</div><div class="v">${solved}<small>문제</small></div></div>
+    <div class="card tile"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span><div class="k">전체 정답률</div><div class="v">${rate === null ? "–" : rate}<small>${rate === null ? "" : "%"}</small></div></div>
+    <div class="card tile ${act.length ? "alert" : ""}"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span><div class="k">남은 오답</div><div class="v">${act.length}<small>문제</small></div></div>
+    <div class="card tile"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg></span><div class="k">완료한 오답</div><div class="v">${mas}<small>문제</small></div></div>
+  </section>
+  <div class="two">
+    <section class="card">
+      <h2>최근 점수</h2>
+      ${spark(scores)}
+      ${at.length ? `<ul class="list" style="margin-top:10px">${at.slice(0, 5).map(a => `<li><div class="t"><b>${esc(a.title)}</b><span class="muted small">${fmtDateTime(a.createdAt)} · ${a.total}문제 중 ${a.correct}문제 정답</span></div><span class="sc">${a.score}</span></li>`).join("")}</ul>` : `<p class="muted" style="margin-top:6px">아직 푼 기록이 없어요. 오른쪽 예시 세트로 먼저 풀어 보세요.</p>`}
+    </section>
+    <section class="card">
+      <h2>문제 세트</h2>
+      <ul class="list">${quick.map(s => `<li><div class="t"><b>${esc(s.title)}</b><span class="muted small">${esc(s.subject || "기타")} · ${s.questions.length}문제${s.example ? " · 체험용" : ""}${s.bestScore != null ? ` · 최고 ${s.bestScore}점` : ""}</span></div><button class="btn small" data-act="play-set" data-id="${esc(s.id)}">풀기</button></li>`).join("")}</ul>
+      ${sets.length > 4 ? `<a href="#sets" class="small" style="display:inline-block;margin-top:8px">전체 ${sets.length}개 보기</a>` : ""}
+    </section>
+  </div>`;
+}
+
+function spark(scores){
+  if (scores.length < 2) return `<p class="muted small">두 번 이상 풀면 점수 변화가 여기에 그려져요.</p>`;
+  const W = 560, H = 150, L = 34, R = 40, T = 14, B = 14;
+  const n = scores.length;
+  const x = i => L + i * (W - L - R) / (n - 1);
+  const y = v => T + (1 - v / 100) * (H - T - B);
+  const pts = scores.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const last = scores[n - 1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="최근 ${n}번의 점수: ${scores.join(", ")}점"><defs><linearGradient id="sparkfill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#4D5BFF" stop-opacity=".28"/><stop offset="1" stop-color="#4D5BFF" stop-opacity="0"/></linearGradient></defs>
+    ${[0, 50, 100].map(v => `<line class="gl" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="gt" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join("")}
+    <polygon class="area" points="${x(0)},${y(0)} ${pts} ${x(n - 1)},${y(0)}"/>
+    <polyline class="ln" points="${pts}"/>
+    <circle class="end" cx="${x(n - 1)}" cy="${y(last)}" r="5"/>
+    <text class="et" x="${x(n - 1) + 9}" y="${y(last) + 7}">${last}</text>
+  </svg>`;
+}
+
+function genBlock(){
+  const f = S.form, len = f.text.trim().length;
+  if (!S.aiChecked) return "AI 연결을 확인하고 있어요…";
+  if (!aiReady()) return S.blockedMsg || "이 화면에서는 AI를 쓸 수 없어요.";
+  if (len < MIN_CHARS) return `자료를 ${MIN_CHARS}자 이상 넣어 주세요.`;
+  if (len > MAX_CHARS) return `자료가 ${MAX_CHARS.toLocaleString()}자를 넘어요. 줄여 주세요.`;
+  if (!TYPES.some(t => f.types[t])) return "문제 유형을 하나 이상 골라 주세요.";
+  return "";
+}
+
+function viewNew(){
+  const f = S.form, len = f.text.trim().length;
+  const imgOk = aiReady() && !!S.aiLimits?.images;
+  const subjects = [...new Set(getSets().map(s => s.subject).filter(Boolean))];
+  const why = genBlock();
+  const aiNotice = S.aiChecked && !aiReady() ? `<div class="notice" style="margin-bottom:18px"><b>AI 기능을 쓸 수 없는 화면이에요.</b> ${esc(S.blockedMsg || "claude.ai에 로그인한 상태에서 이 페이지를 열면 문제 생성과 서술형 채점을 쓸 수 있어요.")} 그동안 <a href="#" data-act="play-set" data-id="example">예시 문제 세트</a>로 풀이와 오답노트를 체험할 수 있어요.</div>` : "";
+  const g = S.gen;
+  let bar;
+  if (g && g.busy) {
+    const pct = Math.min(100, Math.round(g.made / g.total * 100));
+    bar = `<div class="genprog" role="status"><b>${g.made ? `AI가 문제를 쓰고 있어요… ${Math.min(g.made, g.total)} / ${g.total}` : "AI가 자료를 읽고 있어요… (보통 30초~1분)"}</b><div class="bar ${g.made ? "" : "indef"}"><span style="${g.made ? `width:${pct}%` : ""}"></span></div></div><button class="btn" data-act="stop-gen">중단</button>`;
+  } else {
+    bar = `<div class="why" id="gen-why">${g && g.err ? `<span style="color:var(--pen);font-weight:600">${esc(g.err)}</span>` : esc(why || `${f.count}문제 · ${DIFF_LABEL[f.diff]} · ${TYPES.filter(t => f.types[t]).map(t => TYPE_LABEL[t]).join(", ")}`)}</div><button class="btn primary big" id="gen-btn" data-act="generate" ${why ? "disabled" : ""}>${g && g.err ? "다시 시도" : "문제 생성하기"}</button>`;
+  }
+  return `
+  <header class="page-head"><div><p class="eyebrow">새 문제 만들기</p><h1>공부한 자료로 시험지를 만들어요</h1><p class="lead">자료에 있는 내용만으로 문제를 내고, 문제마다 근거 문장을 함께 보여 줘요.</p></div></header>
+  ${aiNotice}
+  <div class="steps">
+    <section class="card">
+      <div class="step-h"><span class="n">1</span><h2>학습 자료</h2></div>
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <div class="seg" role="tablist">
+          <button role="tab" aria-selected="${f.tab === "text"}" class="${f.tab === "text" ? "on" : ""}" data-act="tab" data-v="text">직접 붙여넣기</button>
+          <button role="tab" aria-selected="${f.tab === "file"}" class="${f.tab === "file" ? "on" : ""}" data-act="tab" data-v="file">파일 올리기</button>
+        </div>
+        <button class="btn ghost small" data-act="example-text">예시 자료 넣기</button>
+      </div>
+      ${f.tab === "file" ? `
+        ${f.extracting ? `<div class="drop"><div class="spin"></div><b>파일에서 글자를 꺼내고 있어요…</b></div>` : `
+        <label class="drop" id="drop" for="file-in">
+          <input type="file" id="file-in" data-ch="file" multiple accept=".pdf,.txt,.md,text/plain,application/pdf${imgOk ? ",image/png,image/jpeg,image/webp" : ""}">
+          <span class="big-ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span><b>파일을 끌어다 놓거나 눌러서 고르세요</b>
+          <span class="muted small">PDF, TXT${imgOk ? `, 사진(교과서·필기 촬영, 한 번에 ${S.aiLimits.images.maxCount}장까지)` : ""}</span>
+        </label>`}
+        ${f.fileErr ? `<p class="notice" style="margin-top:12px">${esc(f.fileErr)}</p>` : ""}
+        <p class="muted small" style="margin-top:10px">꺼낸 글자는 '직접 붙여넣기' 칸에 들어가서 고칠 수 있어요.</p>
+      ` : `
+        ${f.fileNote ? `<p class="notice info" style="margin-bottom:12px">${esc(f.fileNote)}</p>` : ""}
+        <label class="lbl" for="mat">자료 내용</label>
+        <textarea id="mat" class="field" rows="12" data-in="text" placeholder="교과서 본문, 수업 필기, 프린트 내용을 붙여 넣으세요.">${esc(f.text)}</textarea>
+        <div class="counter ${len > MAX_CHARS ? "over" : ""}" id="counter"><span>${len > MAX_CHARS ? "글자 수 제한을 넘었어요" : "많을수록 다양한 문제가 나와요 (2,000~5,000자 추천)"}</span><span class="mono">${len.toLocaleString()} / ${MAX_CHARS.toLocaleString()}자</span></div>
+      `}
+    </section>
+    <section class="card">
+      <div class="step-h"><span class="n">2</span><h2>출제 옵션</h2></div>
+      <div class="opts-grid">
+        <div><label class="lbl" for="f-title">문제 세트 제목</label><input id="f-title" class="field" data-in="title" value="${esc(f.title)}" placeholder="예: 생명과학 3단원 광합성" maxlength="60"></div>
+        <div><label class="lbl" for="f-subj">과목</label><input id="f-subj" class="field" data-in="subject" value="${esc(f.subject)}" placeholder="예: 과학" list="subj-list" maxlength="20"><datalist id="subj-list">${subjects.map(s => `<option value="${esc(s)}">`).join("")}</datalist></div>
+        <div><span class="lbl">문제 수</span><div class="seg">${[5, 10, 15, 20].map(n => `<button class="${f.count === n ? "on" : ""}" data-act="count" data-v="${n}" aria-pressed="${f.count === n}">${n}문제</button>`).join("")}</div></div>
+        <div><span class="lbl">난이도</span><div class="seg">${["easy", "medium", "hard"].map(d => `<button class="${f.diff === d ? "on" : ""}" data-act="diff" data-v="${d}" aria-pressed="${f.diff === d}">${DIFF_LABEL[d]}</button>`).join("")}</div></div>
+      </div>
+      <div style="margin-top:18px"><span class="lbl">문제 유형 (여러 개 고를 수 있어요)</span>
+        <div class="row">${TYPES.map(t => `<button class="toggle ${f.types[t] ? "on" : ""}" data-act="type" data-v="${t}" aria-pressed="${!!f.types[t]}"><span class="box">✓</span>${TYPE_LABEL[t]}</button>`).join("")}</div>
+      </div>
+    </section>
+    <section class="card gen-bar" id="genbar">${bar}</section>
+  </div>`;
+}
+
+function answeredCount(q){ return q.questions.filter(x => String(q.answers[x.id] ?? "").trim()).length; }
+function viewQuiz(){
+  const q = S.quiz, qq = q.questions[q.idx], n = q.questions.length, cur = q.answers[qq.id] ?? "";
+  let input = "";
+  if (qq.type === "multiple_choice") {
+    input = `<div class="opts" role="radiogroup" aria-label="보기">${qq.options.map((o, i) => `<button class="opt ${cur === o ? "sel" : ""}" role="radio" aria-checked="${cur === o}" data-act="opt" data-i="${i}"><span class="onum">${i + 1}</span><span>${esc(o)}</span></button>`).join("")}</div>`;
+  } else if (qq.type === "ox") {
+    input = `<div class="ox" role="radiogroup" aria-label="O 또는 X">${["O", "X"].map(v => `<button class="${cur === v ? "sel" : ""}" role="radio" aria-checked="${cur === v}" data-act="ox" data-v="${v}">${v}</button>`).join("")}</div>`;
+  } else if (qq.type === "short_answer") {
+    input = `<div class="ansbox"><label class="lbl" for="ans">답</label><input id="ans" class="field" data-in="ans" value="${esc(cur)}" placeholder="짧게 답을 쓰세요" autocomplete="off" style="font-size:17px;max-width:460px"></div>`;
+  } else {
+    input = `<div class="ansbox"><label class="lbl" for="ans">답안</label><textarea id="ans" class="field" data-in="ans" rows="7" placeholder="자료의 내용을 근거로 문장으로 써 주세요.">${esc(cur)}</textarea><div class="counter"><span>핵심 내용을 2~4문장으로 쓰면 좋아요</span><span class="mono" id="essay-len">${String(cur).length}자</span></div></div>`;
+  }
+  const done = answeredCount(q);
+  return `<div class="quiz-wrap">
+  <header class="quiz-head">
+    <div><p class="eyebrow">${esc(q.ctx.title)}</p><h1 class="qtitle">${q.idx + 1}번 <span>/ ${n}문제</span></h1></div>
+    <button class="btn ghost" data-act="quit-quiz">그만 풀기</button>
+  </header>
+  <div class="bar" aria-hidden="true"><span id="qbar" style="width:${done / n * 100}%"></span></div>
+  <p class="muted small" style="margin-top:6px" id="qdone">${done}문제 답함 · ${n - done}문제 남음</p>
+  <nav class="qnums" aria-label="문제 번호">${q.questions.map((x, i) => `<button class="qn ${i === q.idx ? "cur" : ""} ${String(q.answers[x.id] ?? "").trim() ? "done" : ""}" data-act="qgo" data-i="${i}" aria-label="${i + 1}번 문제">${i + 1}</button>`).join("")}</nav>
+  <article class="card qcard">
+    <div class="qmeta"><span class="chip t-${qq.type}">${TYPE_LABEL[qq.type]}</span>${qq.difficulty ? `<span class="chip soft">${DIFF_LABEL[qq.difficulty] || ""}</span>` : ""}</div>
+    <p class="qtext">${esc(qq.question)}</p>
+    ${input}
+  </article>
+  <div class="qnav">
+    <button class="btn" data-act="qprev" ${q.idx === 0 ? "disabled" : ""}>← 이전</button>
+    ${q.idx < n - 1 ? `<button class="btn primary" data-act="qnext">다음 →</button>` : `<button class="btn primary" data-act="submit">제출하고 채점하기</button>`}
+  </div>
+  ${q.idx < n - 1 ? `<div class="row end" style="margin-top:10px"><button class="btn ghost small" data-act="submit">지금 제출하기</button></div>` : ""}
+  <p class="muted small" style="margin-top:14px">키보드: 숫자 1~4로 보기 선택, O·X 키, ←·→로 문제 이동</p>
+  ${S.grading ? `<div class="overlay" role="status"><div class="card"><div class="spin"></div><span class="pen">채점하고 있어요…</span><p class="muted small">서술형과 단답형은 AI가 뜻을 확인하고 있어요.</p></div></div>` : ""}</div>`;
+}
+
+function markClass(q, r){
+  if (q.type === "essay" && r.score != null) return r.score >= 90 ? "o" : r.score > 0 ? "tri" : "x";
+  return r.correct ? "o" : "x";
+}
+function optionsReview(q, mine){
+  return `<ul class="mini-opts">${q.options.map((o, i) => {
+    const right = o === q.answer, my = o === mine;
+    return `<li class="${right ? "right" : my ? "mine" : ""}"><span>${CIRCLED[i]}</span><span>${esc(o)}</span>${right ? `<span class="tag">정답</span>` : my ? `<span class="tag">내 답</span>` : ""}</li>`;
+  }).join("")}</ul>`;
+}
+function viewResult(){
+  const {attempt:a, questions:qs, savedWrong, mastered} = S.result;
+  const byType = TYPES.filter(t => a.byType[t]).map(t => {
+    const b = a.byType[t]; const pct = Math.round(b.c / b.n * 100);
+    return `<div class="tb" data-t="${t}"><span>${TYPE_LABEL[t]}</span><div class="bar"><span style="width:${pct}%"></span></div><span class="num">${b.c}/${b.n}</span></div>`;
+  }).join("");
+  const wrongCount = a.answers.filter(r => !r.correct).length;
+  const msg = [];
+  if (savedWrong) msg.push(`틀린 문제 ${savedWrong}개를 오답노트에 저장했어요.`);
+  if (mastered) msg.push(`오답 ${mastered}개를 두 번 연속 맞혀서 완료로 옮겼어요.`);
+  const lvl = a.score >= 80 ? "good" : a.score >= 60 ? "mid" : "low";
+  const cheer = a.score === 100 ? "만점이에요!" : a.score >= 80 ? "아주 잘했어요!" : a.score >= 60 ? "좋아요, 조금만 더!" : "오답노트로 다시 도전해요";
+  return `
+  <section class="card score-hero">
+    <div class="ring ${lvl}" style="--p:${a.score}" role="img" aria-label="${a.score}점"><div><b>${a.score}</b><span>점</span></div></div>
+    <div>
+      <p class="eyebrow">${esc(a.title)} · 채점 결과</p><br><span class="badge-msg ${lvl}">${cheer}</span>
+      <h1>${a.total}문제 중 ${a.correct}문제 맞혔어요</h1>
+      <div class="typebars">${byType}</div>
+      ${msg.length ? `<p class="muted">${msg.join(" ")}</p>` : ""}
+      ${a.fallback ? `<p class="notice" style="margin-top:10px">AI를 쓸 수 없어서 단답형은 정답과 글자가 같은지만, 서술형은 핵심어가 얼마나 들어 있는지로 간이 채점했어요.</p>` : ""}
+      <div class="row" style="margin-top:14px">
+        ${wrongCount ? `<button class="btn primary" data-act="retry-wrong">틀린 문제만 다시 풀기 (${wrongCount})</button>` : ""}
+        <a class="btn" href="#notes">오답노트 보기</a>
+        <a class="btn ghost" href="#home">대시보드로</a>
+      </div>
+    </div>
+  </section>
+  <h2 style="margin:8px 0 14px">문제별 채점</h2>
+  <ol class="review">${qs.map((q, i) => {
+    const r = a.answers[i];
+    const isEssay = q.type === "essay";
+    return `<li class="card rv">
+      <div><span class="qmark ${markClass(q, r)}" aria-label="${r.correct ? "맞음" : "틀림"}">${i + 1}</span></div>
+      <div>
+        <div class="qmeta"><span class="chip t-${q.type}">${TYPE_LABEL[q.type]}</span>${isEssay && r.score != null ? `<span class="pen" style="font-size:26px;line-height:1">${r.score}점</span>` : ""}</div>
+        <p class="qtext" style="font-size:17px">${esc(q.question)}</p>
+        ${q.type === "multiple_choice" ? optionsReview(q, r.user) : ""}
+        <dl class="ans">
+          <div><dt>내 답</dt><dd class="${r.correct ? "ok" : "bad"} ${isEssay || q.type === "ox" ? "nostrike" : ""}">${esc(r.user) || "(답 없음)"}</dd></div>
+          <div><dt>${isEssay ? "모범답안" : "정답"}</dt><dd class="ok">${esc(q.answer)}</dd></div>
+        </dl>
+        ${r.feedback ? `<p class="feedback ${r.correct ? "good" : ""}">${esc(r.feedback)}</p>` : ""}
+        <details class="expl" ${r.correct ? "" : "open"}><summary>해설</summary>
+          <p>${esc(q.explanation)}</p>
+          ${isEssay && q.rubric ? `<p class="rubric">채점 기준\n${esc(q.rubric)}</p>` : ""}
+          ${q.source_quote ? `<p class="src"><span class="hl">${esc(q.source_quote)}</span></p>` : ""}
+        </details>
+      </div>
+    </li>`;
+  }).join("")}</ol>`;
+}
+
+const SUBJ_COLORS = [["--t-mc-s","--t-mc"],["--t-ox-s","--t-ox"],["--t-sa-s","--t-sa"],["--t-es-s","--t-es"],["--pen-soft","--pen"]];
+function subjStyle(sub){ let h = 0; for (const ch of String(sub || "기타")) h = (h * 31 + ch.codePointAt(0)) >>> 0; const [b, f] = SUBJ_COLORS[h % SUBJ_COLORS.length]; return `--sb:var(${b});--sf:var(${f})`; }
+
+function viewData(){
+  if (!S.ready) return loadingView();
+  const sets = getSets(), at = getAttempts(), wr = getWrong();
+  const cloud = Store.mode === "cloud";
+  const total = sets.length + at.length + wr.length;
+  const bytes = new Blob([JSON.stringify(Object.fromEntries(Store.docs))]).size;
+  return `
+  <header class="page-head"><div><p class="eyebrow">내 데이터</p><h1>내 학습 기록은 이렇게 저장돼요</h1><p class="lead">문제 세트, 점수 기록, 오답노트는 사용자마다 따로 저장되고 본인만 볼 수 있어요. 언제든 파일로 내려받거나 지울 수 있어요.</p></div></header>
+  <div class="stack">
+    <section class="card">
+      <h2>저장 위치: ${cloud ? "내 Claude 계정의 개인 저장 공간" : "이 브라우저 (Claude에 로그인하면 계정에 저장돼요)"}</h2>
+      <div class="flow">
+        <div class="st"><b>1. 로그인</b>Claude 계정으로 사용자를 확인해요. 비밀번호는 퀴즈메이트가 받지 않아요.</div>
+        <div class="st"><b>2. 사용자 ID</b>플랫폼이 사용자마다 고유한 ID를 줘요. 이름이나 이메일은 저장하지 않아요.</div>
+        <div class="st"><b>3. 개인 경로</b><code>data/users/&lt;내 ID&gt;/</code> 아래에만 저장해요.</div>
+        <div class="st"><b>4. 접근 규칙</b>이 경로는 본인만 읽고 쓸 수 있어요. 페이지를 만든 사람도 볼 수 없어요.</div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>데이터 구조</h2>
+      <p class="muted small" style="margin:-6px 0 12px">문서형 데이터베이스에 문서 세 종류로 나눠 저장해요. 지금 저장된 문서는 ${total}개(약 ${Math.max(1, Math.round(bytes / 1024))}KB)예요.</p>
+      <div class="tablewrap"><table class="schema">
+        <thead><tr><th>문서 종류</th><th>저장 개수</th><th>주요 항목</th><th>언제 만들어지나요</th></tr></thead>
+        <tbody>
+          <tr><td><b>문제 세트</b><br><code>set_…</code></td><td class="num">${sets.length}</td><td>제목, 과목, 난이도, 원본 자료, 문제 목록(유형·보기·정답·해설·근거 문장), 최근·최고 점수</td><td>AI가 문제를 만들었을 때</td></tr>
+          <tr><td><b>풀이 기록</b><br><code>att_…</code></td><td class="num">${at.length}</td><td>점수, 맞힌 개수, 유형별 정답 수, 문제별 내 답·정답 여부·AI 피드백, 푼 시각</td><td>제출하고 채점했을 때</td></tr>
+          <tr><td><b>오답노트</b><br><code>wn_…</code></td><td class="num">${wr.length}</td><td>틀린 문제, 내가 쓴 오답, 틀린 횟수, 연속 정답 수, 메모, 상태(복습 중·완료)</td><td>틀렸을 때 생기고, 다시 풀 때마다 바뀜</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+    <section class="card">
+      <h2>내 데이터 관리</h2>
+      <ul class="facts" style="margin-bottom:18px">
+        <li>백업 파일(JSON)로 내 기록 전체를 내려받을 수 있어요.</li>
+        <li>백업 파일을 불러오면 다른 기기나 계정에서도 기록을 이어서 쓸 수 있어요.</li>
+        <li>필요 없으면 내 기록 전체를 바로 지울 수 있어요.</li>
+      </ul>
+      <div class="row">
+        <button class="btn primary" data-act="export" ${total ? "" : "disabled"}>백업 파일 내려받기</button>
+        <label class="btn" for="import-in">백업 파일 불러오기<input type="file" id="import-in" data-ch="import" accept=".json,application/json" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+      </div>
+    </section>
+    <section class="card dangerzone">
+      <h2>내 기록 전체 삭제</h2>
+      <p class="muted" style="margin:-4px 0 14px">문제 세트 ${sets.length}개, 풀이 기록 ${at.length}개, 오답 ${wr.length}개가 모두 지워지고 되돌릴 수 없어요. 먼저 백업 파일을 내려받아 두세요.</p>
+      <button class="btn danger solid" data-act="wipe" ${total ? "" : "disabled"}>전체 삭제</button>
+    </section>
+  </div>`;
+}
+function backupJson(){
+  const docs = {};
+  for (const [id, v] of Store.docs) if (v && ["set","attempt","wrong"].includes(v.kind)) docs[id] = v;
+  return JSON.stringify({app:"quizmate", version:1, exportedAt:new Date().toISOString(), docs}, null, 1);
+}
+async function exportData(){
+  const json = backupJson();
+  const d = new Date(), name = `quizmate-backup-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}.json`;
+  let dl = null;
+  if (window.claude?.use) { try { dl = await claude.use("downloads"); } catch (e) {} }
+  if (dl) {
+    try { await dl.save({filename:name, data:json}); toast("백업 파일을 저장했어요."); return; }
+    catch (e) { if (e && e.code === "declined") return; }
+  }
+  try { await navigator.clipboard.writeText(json); toast("이 화면에서는 파일을 저장할 수 없어서 백업 내용을 클립보드에 복사했어요."); }
+  catch (e) { toast("백업 파일을 만들지 못했어요.", "bad"); }
+}
+async function importData(file){
+  if (!file) return;
+  let obj;
+  try { obj = JSON.parse(await file.text()); } catch (e) { toast("JSON 파일이 아니에요. 퀴즈메이트 백업 파일을 골라 주세요.", "bad"); return; }
+  if (!obj || obj.app !== "quizmate" || !obj.docs || typeof obj.docs !== "object") { toast("퀴즈메이트 백업 파일이 아니에요.", "bad"); return; }
+  const prefix = {set:"set_", attempt:"att_", wrong:"wn_"};
+  const items = Object.entries(obj.docs).filter(([id, v]) => v && typeof v === "object" && prefix[v.kind] && id.startsWith(prefix[v.kind]) && /^[A-Za-z0-9_.\-~:@+]{1,180}$/.test(id)
+    && (v.kind !== "set" || Array.isArray(v.questions)) && (v.kind !== "wrong" || (v.question && typeof v.question === "object")));
+  if (!items.length) { toast("불러올 기록이 없어요.", "bad"); return; }
+  const dup = items.filter(([id]) => Store.docs.has(id)).length;
+  if (!(await ask({title:`기록 ${items.length}개를 불러올까요?`, body:dup ? `이미 있는 기록 ${dup}개는 백업 파일 내용으로 바뀌어요.` : "지금 기록에 더해져요.", ok:"불러오기"}))) return;
+  for (const [id, v] of items) await Store.put(id, v);
+  toast(`기록 ${items.length}개를 불러왔어요.`);
+}
+async function wipeData(){
+  const ids = [...Store.docs].filter(([, v]) => v && ["set","attempt","wrong"].includes(v.kind)).map(([id]) => id);
+  if (!ids.length) return;
+  if (!(await ask({title:"내 기록을 모두 지울까요?", body:`문서 ${ids.length}개가 지워지고 되돌릴 수 없어요.`, ok:"모두 삭제", danger:true}))) return;
+  for (const id of ids) await Store.del(id);
+  toast("내 기록을 모두 지웠어요.");
+}
+
+function confetti(){
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const c = document.createElement("canvas"); c.id = "confetti"; document.body.append(c);
+  const x = c.getContext("2d"), dpr = window.devicePixelRatio || 1;
+  c.width = innerWidth * dpr; c.height = innerHeight * dpr; x.scale(dpr, dpr);
+  const cols = ["#1E90F0","#0FA67A","#FFD23F","#E8468F","#7C55F0","#F04F4F"];
+  const ps = Array.from({length:140}, () => ({x:innerWidth / 2 + (Math.random() - .5) * 200, y:innerHeight * .35, vx:(Math.random() - .5) * 14, vy:-Math.random() * 14 - 4, r:Math.random() * 6 + 4, a:Math.random() * 6, va:(Math.random() - .5) * .3, c:cols[Math.floor(Math.random() * cols.length)]}));
+  let t = 0;
+  (function step(){
+    x.clearRect(0, 0, innerWidth, innerHeight);
+    ps.forEach(p => { p.vy += .35; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += p.va; x.save(); x.translate(p.x, p.y); x.rotate(p.a); x.fillStyle = p.c; x.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); x.restore(); });
+    if (++t < 150) requestAnimationFrame(step); else c.remove();
+  })();
+}
+function viewSets(){
+  if (!S.ready) return loadingView();
+  const sets = getSets();
+  const card = s => `<article class="card set-card" style="${subjStyle(s.subject)}">
+    <div class="set-top"><span class="subj-badge" aria-hidden="true">${esc((s.subject || "기타").trim().charAt(0))}</span><h3>${esc(s.title)}</h3></div>
+    <div class="chips"><span class="chip">${esc(s.subject || "기타")}</span><span class="chip soft">${DIFF_LABEL[s.difficulty] || "보통"}</span><span class="chip soft">${s.questions.length}문제</span>${s.example ? `<span class="chip soft">체험용 예시</span>` : ""}</div>
+    <p class="muted small">${s.example ? "AI 없이도 풀어 볼 수 있는 예시예요" : `${fmtDate(s.createdAt)} 만듦 · ${s.attemptCount || 0}번 풂`}</p>
+    ${s.bestScore != null ? `<div class="scores"><span>최근<span class="pen">${s.lastScore}</span></span><span>최고<span class="pen">${s.bestScore}</span></span></div>` : ""}
+    <div class="row"><button class="btn primary small" data-act="play-set" data-id="${esc(s.id)}">풀기</button>${s.example ? "" : `<button class="btn ghost small danger" data-act="del-set" data-id="${esc(s.id)}">삭제</button>`}</div>
+  </article>`;
+  return `
+  <header class="page-head"><div><p class="eyebrow">내 문제 세트</p><h1>만든 시험지 ${sets.length}개</h1><p class="lead">다시 풀면 점수가 기록되고, 틀린 문제는 오답노트에 쌓여요.</p></div><a class="btn primary" href="#new">+ 새 문제 만들기</a></header>
+  <div class="grid-cards">${sets.map(card).join("")}${card(EXAMPLE_SET)}</div>`;
+}
+
+function viewNotes(){
+  if (!S.ready) return loadingView();
+  const all = getWrong();
+  const act = all.filter(w => w.status !== "mastered"), mas = all.filter(w => w.status === "mastered");
+  const nf = S.nf;
+  let list = nf.tab === "mastered" ? mas : act;
+  const subjects = [...new Set(all.map(w => w.subject || "기타"))];
+  const setMap = new Map(); all.forEach(w => setMap.set(w.setId || "-", w.setTitle || "기타"));
+  if (nf.subject !== "all") list = list.filter(w => (w.subject || "기타") === nf.subject);
+  if (nf.set !== "all") list = list.filter(w => (w.setId || "-") === nf.set);
+  if (nf.type !== "all") list = list.filter(w => w.question.type === nf.type);
+  list.sort(nf.sort === "most" ? (a, b) => (b.wrongCount - a.wrongCount) || ((b.updatedAt || 0) - (a.updatedAt || 0)) : (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const sel = (name, label, opts) => `<label class="f"><span>${label}</span><select class="field" data-ch="nf" name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${nf[name] === v ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
+  let body;
+  if (!all.length) body = `<div class="card empty"><span class="pen">아직 오답이 없어요 🎉</span>문제를 풀다가 틀리면 여기에 자동으로 모여요.<div class="row" style="justify-content:center;margin-top:16px"><a class="btn primary" href="#new">문제 만들기</a><button class="btn" data-act="play-set" data-id="example">예시 세트 풀기</button></div></div>`;
+  else if (!list.length) body = `<div class="card empty">${nf.tab === "mastered" ? "아직 완료한 문제가 없어요. 오답을 두 번 연속 맞히면 여기로 옮겨져요." : "조건에 맞는 오답이 없어요."}</div>`;
+  else body = `<div class="stack">${list.map(noteCard).join("")}</div>`;
+  return `
+  <header class="page-head"><div><p class="eyebrow">오답노트</p><h1>틀린 문제를 다시 내 것으로</h1><p class="lead">틀린 문제는 자동으로 모여요. 다시 풀어서 두 번 연속 맞히면 '완료'로 옮겨져요.</p></div></header>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="${nf.tab === "active"}" class="${nf.tab === "active" ? "on" : ""}" data-act="nf-tab" data-v="active">복습 중 <span class="mono">${act.length}</span></button>
+    <button role="tab" aria-selected="${nf.tab === "mastered"}" class="${nf.tab === "mastered" ? "on" : ""}" data-act="nf-tab" data-v="mastered">완료 <span class="mono">${mas.length}</span></button>
+  </div>
+  ${all.length ? `<div class="toolbar">
+    ${sel("subject", "과목", [["all", "전체"], ...subjects.map(s => [s, s])])}
+    ${sel("set", "문제 세트", [["all", "전체"], ...[...setMap].map(([k, v]) => [k, v])])}
+    ${sel("type", "유형", [["all", "전체"], ...TYPES.map(t => [t, TYPE_LABEL[t]])])}
+    ${sel("sort", "정렬", [["recent", "최근 틀린 순"], ["most", "많이 틀린 순"]])}
+    <span class="grow"></span>
+    ${nf.tab === "active" && list.length ? `<button class="btn primary" data-act="notes-retry-list">보이는 ${list.length}문제 다시 풀기</button>` : ""}
+  </div>` : ""}
+  ${body}`;
+}
+
+function noteCard(w){
+  const q = w.question, sim = S.similar[w.id], busy = S.simBusy[w.id];
+  const streak = Math.min(2, w.correctStreak || 0);
+  return `<article class="card note">
+    <div class="note-top">
+      <div class="chips"><span class="chip t-${q.type}">${TYPE_LABEL[q.type]}</span><span class="chip soft">${esc(w.subject || "기타")}</span><span class="chip soft">${esc(w.setTitle || "")}</span></div>
+      <div class="note-stats">
+        ${w.status === "mastered" ? `<span class="pill ok">완료</span>` : `<span class="streak" title="두 번 연속 맞히면 완료">연속 정답 <i class="${streak >= 1 ? "f" : ""}"></i><i class="${streak >= 2 ? "f" : ""}"></i></span>`}
+        <span class="pill bad">틀린 횟수 ${w.wrongCount}</span>
+        <span class="muted small">${fmtDate(w.updatedAt || w.createdAt)}</span>
+      </div>
+    </div>
+    <p class="qtext" style="font-size:17px">${esc(q.question)}</p>
+    ${q.type === "multiple_choice" ? optionsReview(q, w.wrongAnswer) : ""}
+    <dl class="ans">
+      <div><dt>내가 쓴 답</dt><dd class="bad ${q.type === "essay" || q.type === "ox" ? "nostrike" : ""}">${esc(w.wrongAnswer) || "(답 없음)"}</dd></div>
+      <div><dt>${q.type === "essay" ? "모범답안" : "정답"}</dt><dd class="ok">${esc(q.answer)}</dd></div>
+    </dl>
+    <div class="expl"><p>${esc(q.explanation)}</p>${q.source_quote ? `<p class="src" style="margin-top:6px"><span class="hl">${esc(q.source_quote)}</span></p>` : ""}</div>
+    <div class="memo">
+      <label for="memo-${esc(w.id)}">내 메모: 왜 틀렸는지 적어 두세요</label>
+      <textarea id="memo-${esc(w.id)}" class="field" rows="2" data-in="memo" placeholder="예: 녹말과 설탕이 바뀌는 때를 헷갈림">${esc(w.memo || "")}</textarea>
+      <button class="btn small" data-act="memo-save" data-id="${esc(w.id)}">메모 저장</button>
+    </div>
+    ${sim ? `<div class="simbox"><p class="small" style="font-weight:700;color:var(--accent);margin-bottom:6px">비슷한 새 문제가 준비됐어요</p><p class="qtext">${esc(sim.question)}</p><div class="row" style="margin-top:10px"><button class="btn primary small" data-act="sim-play" data-id="${esc(w.id)}">바로 풀기</button><button class="btn ghost small" data-act="sim-close" data-id="${esc(w.id)}">닫기</button></div></div>` : ""}
+    <div class="note-actions">
+      <button class="btn small" data-act="note-retry" data-id="${esc(w.id)}">다시 풀기</button>
+      <button class="btn small" data-act="note-similar" data-id="${esc(w.id)}" ${busy || !aiReady() ? "disabled" : ""} ${!aiReady() ? 'title="AI를 쓸 수 있을 때만 가능해요"' : ""}>${busy ? "만드는 중…" : "비슷한 문제 만들기"}</button>
+      ${w.status === "mastered" ? `<button class="btn ghost small" data-act="note-restore" data-id="${esc(w.id)}">복습 중으로 되돌리기</button>` : `<button class="btn ghost small" data-act="note-master" data-id="${esc(w.id)}">완료로 옮기기</button>`}
+      <button class="btn ghost small danger" data-act="note-del" data-id="${esc(w.id)}">삭제</button>
+    </div>
+  </article>`;
+}
