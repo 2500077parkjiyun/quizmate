@@ -435,7 +435,7 @@ function viewSets(){
     <div class="chips"><span class="chip">${esc(s.subject || "기타")}</span><span class="chip soft">${DIFF_LABEL[s.difficulty] || "보통"}</span><span class="chip soft">${s.questions.length}문제</span>${s.example ? `<span class="chip soft">체험용 예시</span>` : ""}</div>
     <p class="muted small">${s.example ? "AI 없이도 풀어 볼 수 있는 예시예요" : `${fmtDate(s.createdAt)} 만듦 · ${s.attemptCount || 0}번 풂`}</p>
     ${s.bestScore != null ? `<div class="scores"><span>최근<span class="pen">${s.lastScore}</span></span><span>최고<span class="pen">${s.bestScore}</span></span></div>` : ""}
-    <div class="row"><button class="btn primary small" data-act="play-set" data-id="${esc(s.id)}">풀기</button>${s.example ? "" : `<button class="btn ghost small danger" data-act="del-set" data-id="${esc(s.id)}">삭제</button>`}</div>
+    <div class="row"><button class="btn primary small" data-act="play-set" data-id="${esc(s.id)}">풀기</button>${s.example ? "" : `<button class="btn small" data-act="edit-set" data-id="${esc(s.id)}">문제 수정</button>`}${s.example ? "" : `<button class="btn ghost small danger" data-act="del-set" data-id="${esc(s.id)}">삭제</button>`}</div>
   </article>`;
   return `
   <header class="page-head"><div><p class="eyebrow">내 문제 세트</p><h1>만든 시험지 ${sets.length}개</h1><p class="lead">다시 풀면 점수가 기록되고, 틀린 문제는 오답노트에 쌓여요.</p></div><a class="btn primary" href="#new">+ 새 문제 만들기</a></header>
@@ -510,4 +510,44 @@ function noteCard(w){
       <button class="btn ghost small danger" data-act="note-del" data-id="${esc(w.id)}">삭제</button>
     </div>
   </article>`;
+}
+
+/* 문제 수정 화면: AI가 만든 문제를 직접 고치거나 뺀다 */
+function viewEdit(){
+  const e = S.edit; if (!e) return "";
+  const field = (qi, f, label, val, rows) => {
+    const id = `ed-${qi}-${f}`;
+    return `<label class="lbl" for="${id}">${label}</label>${rows
+      ? `<textarea id="${id}" class="field" rows="${rows}" data-in="edit" data-qi="${qi}" data-f="${f}">${esc(val)}</textarea>`
+      : `<input id="${id}" class="field" data-in="edit" data-qi="${qi}" data-f="${f}" value="${esc(val)}">`}`;
+  };
+  const card = (q, qi) => {
+    let body = "";
+    if (q.type === "multiple_choice") {
+      body = `<fieldset class="pick"><legend class="lbl">보기 (정답에 표시하세요)</legend><div class="ed-opts">${q.options.map((o, oi) => `
+        <div class="ed-opt"><input type="radio" name="ans-${qi}" id="ed-${qi}-a${oi}" data-ch="edit-ans" data-qi="${qi}" value="${oi}" ${q.ai === oi ? "checked" : ""}>
+        <label class="sr-only" for="ed-${qi}-a${oi}">${oi + 1}번을 정답으로</label>
+        <label class="sr-only" for="ed-${qi}-o${oi}">${oi + 1}번 보기</label>
+        <input id="ed-${qi}-o${oi}" class="field" data-in="edit" data-qi="${qi}" data-f="opt" data-oi="${oi}" value="${esc(o)}"></div>`).join("")}</div></fieldset>`;
+    } else if (q.type === "ox") {
+      body = `<fieldset class="pick"><legend class="lbl">정답</legend><div class="seg">${["O", "X"].map(v => `<label><input type="radio" name="ans-${qi}" value="${v}" data-ch="edit-ox" data-qi="${qi}" ${q.answer === v ? "checked" : ""}><span>${v}</span></label>`).join("")}</div></fieldset>`;
+    } else if (q.type === "short_answer") {
+      body = field(qi, "answer", "정답", q.answer) + field(qi, "acc", "같은 뜻으로 인정할 답 (쉼표로 구분)", (q.acceptable_answers || []).join(", "));
+    } else {
+      body = field(qi, "answer", "모범답안", q.answer, 3) + field(qi, "rubric", "채점 기준", q.rubric || "", 3);
+    }
+    return `<article class="card ed-card">
+      <div class="note-top"><div class="chips"><span class="chip t-${q.type}">${qi + 1}번 · ${TYPE_LABEL[q.type]}</span></div>
+        <button class="btn ghost small danger" data-act="edit-del" data-qi="${qi}" ${e.questions.length <= 1 ? "disabled" : ""}>이 문제 빼기</button></div>
+      ${field(qi, "question", "문제", q.question, 2)}
+      ${body}
+      ${field(qi, "explanation", "해설", q.explanation, 3)}
+    </article>`;
+  };
+  return `
+  <header class="page-head"><div><p class="eyebrow">문제 수정</p><h1>${esc(e.title)}</h1><p class="lead">AI가 만든 문제가 어색하면 직접 고치거나 빼세요. 저장하면 다음 풀이부터 바뀐 문제가 나와요.</p></div>
+    <div class="row"><button class="btn ghost" data-act="edit-cancel">취소</button><button class="btn primary" data-act="edit-save">저장 (${e.questions.length}문제)</button></div></header>
+  ${e.err ? `<p class="notice" role="alert" style="margin-bottom:16px">${esc(e.err)}</p>` : ""}
+  <div class="stack">${e.questions.map(card).join("")}</div>
+  <div class="row end" style="margin-top:18px"><button class="btn ghost" data-act="edit-cancel">취소</button><button class="btn primary" data-act="edit-save">저장 (${e.questions.length}문제)</button></div>`;
 }

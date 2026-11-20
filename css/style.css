@@ -397,3 +397,15 @@ body.signed-out .nav, body.signed-out .tabbar, body.signed-out .top-r .btn.prima
 .toplist li span:first-child{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .toplist .pill{display:inline-block;margin-top:3px}
 @media (max-width:900px){.weak-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* 문제 수정 */
+.ed-card{display:grid;gap:6px}
+.ed-card .field{margin-bottom:8px}
+.ed-card fieldset{margin-bottom:8px}
+.ed-opts{display:grid;gap:8px}
+.ed-opt{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:8px}
+.ed-opt input[type=radio]{width:20px;height:20px;accent-color:var(--mint);margin:0 auto}
+.ed-opt .field{margin:0}
+.ed-opt:has(input[type=radio]:checked) .field{border-color:var(--mint);background:var(--mint-s)}
+/* 상단 메뉴가 넘치지 않게: 화면이 좁으면 오른쪽 '새 문제 만들기' 버튼을 숨김 (메뉴에 '새 문제'가 있음) */
+@media (max-width:1280px){.top-r>.btn.primary{display:none}}

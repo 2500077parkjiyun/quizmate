@@ -165,6 +165,20 @@ const Store = {
       }
     } catch (e) { dbErr(e); }
   },
+  /* 문제 수정 저장: 뺀 문제는 지우고, 남은 문제는 새 순서로 다시 저장 */
+  async saveQuestions(id, questions){
+    const d = this.docs.get(id); if (!d) return;
+    this.docs.set(id, {...d, questions}); onData();
+    if (this.mode === "local") return this.saveLocal();
+    if (this.mode !== "cloud") return;
+    try {
+      const keep = questions.map(q => `"${q.id}"`).join(",");
+      const r1 = await sb.from("questions").delete().eq("set_id", id).not("id", "in", `(${keep})`);
+      if (r1.error) throw r1.error;
+      const r2 = await sb.from("questions").upsert(questions.map((q, i) => Rows.questionToRow(id, q, i)));
+      if (r2.error) throw r2.error;
+    } catch (e) { dbErr(e); }
+  },
   async del(id){
     const kind = this.docs.get(id)?.kind;
     this.docs.delete(id); onData();
@@ -190,7 +204,7 @@ function onData(){
   S.ready = Store.mode !== "loading";
   const r = route();
   updateNav(r);
-  if (r === "quiz" || r === "new") return;
+  if (r === "quiz" || r === "new" || r === "edit") return;
   const a = document.activeElement;
   if (a && $("#main").contains(a) && /^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName)) { S.pendingRender = true; return; }
   render();

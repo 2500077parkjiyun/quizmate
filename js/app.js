@@ -6,7 +6,7 @@ function route(){ const r = (location.hash || "#home").slice(1); return r || "ho
 function go(r){ if (location.hash === "#" + r) render(); else location.hash = r; }
 function updateNav(r){
   const act = getWrong().filter(w => w.status !== "mastered").length;
-  const cur = (r === "quiz" || r === "result") ? "" : r;
+  const cur = (r === "quiz" || r === "result") ? "" : (r === "edit" || r === "print") ? "sets" : r;
   const item = ([k, label, ic], mobile) =>
     `<a href="#${k}" class="${cur === k ? "on" : ""}" ${cur === k ? 'aria-current="page"' : ""}>${ICON[ic]}<span>${k === "new" ? "새 문제" : k === "sets" ? "문제 세트" : label}</span>${k === "notes" && act ? `<span class="count">${act}</span>` : ""}</a>`;
   $("#nav").innerHTML = ROUTES.map(x => item(x, false)).join("");
@@ -35,6 +35,7 @@ function render(){
   else if (r === "sets") html = viewSets();
   else if (r === "notes") html = viewNotes();
   else if (r === "data") html = viewData();
+  else if (r === "edit") { if (!S.edit) return go("sets"); html = viewEdit(); }
   else html = viewHome();
   $("#main").innerHTML = html;
   updateNav(r);
@@ -314,6 +315,17 @@ document.addEventListener("click", async e => {
       const list = String(b.dataset.ids || "").split(",").map(i => ({...Store.docs.get(i), id:i})).filter(w => w.question);
       startQuiz(questionsFromNotes(list), {mode:"review", title:"자주 틀리는 문제"}); break;
     }
+    case "edit-set": {
+      const st = findSet(id); if (!st || st.example) return;
+      S.edit = {id, title:st.title, dirty:false, err:"", questions:clone(st.questions).map(q => q.type === "multiple_choice" ? {...q, ai:q.options.indexOf(q.answer)} : q)};
+      go("edit"); break;
+    }
+    case "edit-del":
+      S.edit.questions.splice(+b.dataset.qi, 1); S.edit.dirty = true; render(); break;
+    case "edit-cancel":
+      if (S.edit?.dirty && !(await ask({title:"고친 내용을 버릴까요?", body:"저장하지 않은 수정은 사라져요.", ok:"버리기", cancel:"계속 고치기"}))) return;
+      S.edit = null; go("sets"); break;
+    case "edit-save": saveEdit(); break;
     case "review-today": startQuiz(questionsFromNotes(getWrong().filter(isDue)), {mode:"review", title:"오늘의 복습"}); break;
     case "notes-retry-all": startQuiz(questionsFromNotes(getWrong().filter(w => w.status !== "mastered")), {mode:"review", title:"오답노트 복습"}); break;
     case "notes-retry-list": {
@@ -356,6 +368,31 @@ document.addEventListener("click", async e => {
     }
   }
 });
+/* 문제 수정 저장: 빈칸·정답 오류를 검사하고 DB에 반영한다 */
+async function saveEdit(){
+  const e = S.edit; if (!e) return;
+  const out = [];
+  for (const [i, q] of e.questions.entries()) {
+    const n = `${i + 1}번 문제`, x = {...q, question:q.question.trim(), explanation:(q.explanation || "").trim()};
+    if (!x.question) { e.err = `${n}의 문제 내용이 비어 있어요.`; return render(); }
+    if (x.type === "multiple_choice") {
+      x.options = x.options.map(o => o.trim());
+      if (x.options.some(o => !o)) { e.err = `${n}에 빈 보기가 있어요.`; return render(); }
+      if (new Set(x.options.map(norm)).size !== x.options.length) { e.err = `${n}에 같은 보기가 두 번 있어요.`; return render(); }
+      if (!(x.ai >= 0)) { e.err = `${n}의 정답을 골라 주세요.`; return render(); }
+      x.answer = x.options[x.ai];
+    } else {
+      x.answer = String(x.answer || "").trim();
+      if (!x.answer) { e.err = `${n}의 정답이 비어 있어요.`; return render(); }
+    }
+    delete x.ai; out.push(x);
+  }
+  e.err = "";
+  await Store.saveQuestions(e.id, out);
+  toast(`'${e.title}' 문제 ${out.length}개를 저장했어요.`);
+  S.edit = null; go("sets");
+}
+
 async function makeSimilar(id){
   const w = Store.docs.get(id); if (!w || !aiReady()) return;
   S.simBusy[id] = true; render();
@@ -381,12 +418,20 @@ document.addEventListener("input", e => {
   } else if (k === "text") { S.form.text = el.value; refreshCounter(); }
   else if (k === "title") S.form.title = el.value;
   else if (k === "subject") S.form.subject = el.value;
+  else if (k === "edit" && S.edit) {
+    const q = S.edit.questions[+el.dataset.qi], f = el.dataset.f; S.edit.dirty = true;
+    if (f === "opt") q.options[+el.dataset.oi] = el.value;
+    else if (f === "acc") q.acceptable_answers = el.value.split(",").map(x => x.trim()).filter(Boolean);
+    else q[f] = el.value;
+  }
 });
 document.addEventListener("change", e => {
   const el = e.target, k = el.dataset && el.dataset.ch; if (!k) return;
   if (k === "file") handleFiles(el.files);
   else if (k === "import") { importData(el.files && el.files[0]); el.value = ""; }
   else if (k === "nf") { S.nf[el.name] = el.value; render(); }
+  else if (k === "edit-ans" && S.edit) { S.edit.questions[+el.dataset.qi].ai = +el.value; S.edit.dirty = true; }
+  else if (k === "edit-ox" && S.edit) { S.edit.questions[+el.dataset.qi].answer = el.value; S.edit.dirty = true; }
   else if (k === "count") { S.form.count = +el.value; S.gen = null; renderGenBar(); }
   else if (k === "diff") { S.form.diff = el.value; S.gen = null; renderGenBar(); }
   else if (k === "type") { S.form.types[el.value] = el.checked; S.gen = null; renderGenBar(); }
