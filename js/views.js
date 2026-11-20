@@ -96,7 +96,38 @@ function viewHome(){
       <ul class="list">${quick.map(s => `<li><div class="t"><b>${esc(s.title)}</b><span class="muted small">${esc(s.subject || "기타")} · ${s.questions.length}문제${s.example ? " · 체험용" : ""}${s.bestScore != null ? ` · 최고 ${s.bestScore}점` : ""}</span></div><button class="btn small" data-act="play-set" data-id="${esc(s.id)}">풀기</button></li>`).join("")}</ul>
       ${sets.length > 4 ? `<a href="#sets" class="small" style="display:inline-block;margin-top:8px">전체 ${sets.length}개 보기</a>` : ""}
     </section>
-  </div>`;
+  </div>
+  ${viewWeak(at, wr)}`;
+}
+
+/* 약점 분석: 지금까지의 풀이 기록을 유형별·과목별로 모아 정답률을 계산한다 */
+function weakStats(at){
+  const byType = {}, bySubj = {};
+  for (const a of at) {
+    for (const [t, b] of Object.entries(a.byType || {})) { const o = byType[t] ||= {n:0, c:0}; o.n += b.n; o.c += b.c; }
+    const sj = (a.subject || "기타").trim() || "기타"; const o = bySubj[sj] ||= {n:0, c:0}; o.n += a.total || 0; o.c += a.correct || 0;
+  }
+  const rate = o => Math.round(o.c / o.n * 100);
+  const types = TYPES.filter(t => byType[t]?.n).map(t => ({key:t, label:TYPE_LABEL[t], n:byType[t].n, c:byType[t].c, pct:rate(byType[t])}));
+  const subjects = Object.entries(bySubj).filter(([, o]) => o.n).map(([k, o]) => ({key:k, label:k, n:o.n, c:o.c, pct:rate(o)})).sort((a, b) => a.pct - b.pct);
+  return {types, subjects};
+}
+function viewWeak(at, wr){
+  if (!at.length) return "";
+  const {types, subjects} = weakStats(at);
+  const weakest = [...types].filter(t => t.n >= 2).sort((a, b) => a.pct - b.pct)[0];
+  const top = wr.filter(w => w.status !== "mastered" && w.wrongCount >= 1).sort((a, b) => (b.wrongCount - a.wrongCount) || ((b.updatedAt || 0) - (a.updatedAt || 0))).slice(0, 3);
+  const bars = (list, attr) => list.map(x => `<div class="tb" ${attr ? `data-t="${x.key}"` : ""}><span>${esc(x.label)}</span><div class="bar" role="img" aria-label="${esc(x.label)} 정답률 ${x.pct}%"><span style="width:${x.pct}%"></span></div><span class="num">${x.pct}%</span></div>`).join("");
+  return `<section class="card weak" aria-labelledby="weak-h">
+    <h2 id="weak-h">약점 분석</h2>
+    <p class="muted small" style="margin:2px 0 14px">지금까지 푼 ${at.reduce((n, a) => n + (a.total || 0), 0)}문제를 모아서 계산했어요.${weakest && weakest.pct < 80 ? ` 가장 약한 유형은 <b>${esc(weakest.label)}</b>(${weakest.pct}%)예요.` : ""}</p>
+    <div class="weak-grid">
+      <div><h3 class="lbl">유형별 정답률</h3><div class="typebars">${bars(types, true)}</div></div>
+      <div><h3 class="lbl">과목별 정답률</h3><div class="typebars subj">${bars(subjects.slice(0, 5), false)}</div></div>
+      <div><h3 class="lbl">자주 틀리는 문제</h3>${top.length ? `<ol class="toplist">${top.map(w => `<li><span>${esc(w.question.question)}</span><span class="pill bad">${w.wrongCount}번 틀림</span></li>`).join("")}</ol>
+        <button class="btn small" data-act="weak-retry" data-ids="${esc(top.map(w => w.id).join(","))}">이 문제들 다시 풀기</button>` : `<p class="muted small">복습 중인 오답이 없어요.</p>`}</div>
+    </div>
+  </section>`;
 }
 
 function spark(scores){

@@ -310,6 +310,10 @@ document.addEventListener("click", async e => {
       startQuiz(qs.filter((_, i) => !a.answers[i].correct), {mode:"retry", setId:a.setId, title:a.title.replace(/ · 틀린 문제$/, "") + " · 틀린 문제", subject:a.subject});
       break;
     }
+    case "weak-retry": {
+      const list = String(b.dataset.ids || "").split(",").map(i => ({...Store.docs.get(i), id:i})).filter(w => w.question);
+      startQuiz(questionsFromNotes(list), {mode:"review", title:"자주 틀리는 문제"}); break;
+    }
     case "review-today": startQuiz(questionsFromNotes(getWrong().filter(isDue)), {mode:"review", title:"오늘의 복습"}); break;
     case "notes-retry-all": startQuiz(questionsFromNotes(getWrong().filter(w => w.status !== "mastered")), {mode:"review", title:"오답노트 복습"}); break;
     case "notes-retry-list": {
