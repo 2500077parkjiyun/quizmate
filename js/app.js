@@ -316,6 +316,13 @@ document.addEventListener("click", async e => {
       const list = String(b.dataset.ids || "").split(",").map(i => ({...Store.docs.get(i), id:i})).filter(w => w.question);
       startQuiz(questionsFromNotes(list), {mode:"review", title:"자주 틀리는 문제"}); break;
     }
+    case "theme": {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem("quizmate.theme", next); } catch (err) {}
+      b.setAttribute("aria-pressed", String(next === "dark"));
+      break;
+    }
     case "print-set": S.printId = id; go("print"); break;
     case "print-go": window.print(); break;
     case "print-back": go("sets"); break;
