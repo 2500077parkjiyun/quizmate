@@ -5,7 +5,7 @@ function loadingView(){ return `<div class="empty"><div class="spin"></div>불�
 
 /* 로그인 · 회원가입 화면 */
 function viewLogin(){
-  const a = S.auth, up = a.mode === "signup";
+  const a = S.auth, up = a.mode === "signup", reset = a.mode === "reset";
   if (!sb) return `<div class="card empty">로그인 도구(Supabase)를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.<div class="row" style="justify-content:center;margin-top:16px"><button class="btn" data-act="guest">체험 모드로 둘러보기</button></div></div>`;
   return `
   <section class="auth">
@@ -21,12 +21,19 @@ function viewLogin(){
     </div>
     <div class="card auth-card">
       <div class="seg" role="tablist" style="margin-bottom:18px">
-        <button role="tab" type="button" aria-selected="${!up}" class="${up ? "" : "on"}" data-act="auth-mode" data-v="login">로그인</button>
+        <button role="tab" type="button" aria-selected="${!up}" class="${up || reset ? "" : "on"}" data-act="auth-mode" data-v="login">로그인</button>
         <button role="tab" type="button" aria-selected="${up}" class="${up ? "on" : ""}" data-act="auth-mode" data-v="signup">회원가입</button>
       </div>
       ${a.info ? `<p class="notice info" style="margin-bottom:14px">${esc(a.info)}</p>` : ""}
       ${a.err ? `<p class="notice" role="alert" style="margin-bottom:14px">${esc(a.err)}</p>` : ""}
-      <form id="auth-form" class="auth-form" novalidate>
+      ${reset ? `<form id="reset-form" class="auth-form" novalidate>
+        <h2 style="margin-bottom:6px">비밀번호 재설정</h2>
+        <p class="muted small" style="margin-bottom:10px">가입한 이메일을 넣으면 비밀번호를 새로 정하는 링크를 보내 드려요.</p>
+        <label class="lbl" for="rs-email">이메일</label>
+        <input id="rs-email" class="field" name="email" type="email" autocomplete="email" required value="${esc(a.email)}">
+        <button class="btn primary big" type="submit" ${a.busy ? "disabled" : ""}>${a.busy ? "보내는 중…" : "재설정 링크 보내기"}</button>
+        <button class="linkbtn" type="button" data-act="auth-mode" data-v="login" style="margin-top:10px">← 로그인으로 돌아가기</button>
+      </form>` : `<form id="auth-form" class="auth-form" novalidate>
         <label class="lbl" for="au-email">이메일</label>
         <input id="au-email" class="field" name="email" type="email" autocomplete="email" required value="${esc(a.email)}" placeholder="you@example.com">
         ${up ? `<label class="lbl" for="au-name">이름 (화면에 보여요)</label>
@@ -36,7 +43,8 @@ function viewLogin(){
         ${up ? `<label class="lbl" for="au-pw2">비밀번호 확인</label>
         <input id="au-pw2" class="field" name="password2" type="password" autocomplete="new-password" required minlength="6">` : ""}
         <button class="btn primary big" type="submit" ${a.busy ? "disabled" : ""}>${a.busy ? "잠시만요…" : up ? "가입하기" : "로그인"}</button>
-      </form>
+        ${up ? "" : `<button class="linkbtn" type="button" data-act="auth-mode" data-v="reset" style="margin-top:10px">비밀번호를 잊었어요</button>`}
+      </form>`}
       <p class="muted small" style="margin-top:16px;text-align:center">가입 없이 먼저 써 보고 싶다면 <button class="linkbtn" data-act="guest">체험 모드로 둘러보기</button><br>(체험 모드 기록은 이 브라우저에만 저장돼요)</p>
     </div>
   </section>`;
@@ -340,6 +348,15 @@ function viewData(){
         <div class="st"><b>4. 접근 규칙 (RLS)</b>"로그인한 사람의 ID = 행의 user_id"일 때만 읽고 쓸 수 있어요. 다른 사람의 기록은 보이지 않아요.</div>
       </div>
     </section>
+    ${cloud ? `<section class="card">
+      <h2>내 정보</h2>
+      <form id="name-form" class="name-form" novalidate>
+        <div><span class="lbl">이메일</span><p>${esc(Auth.user.email)}</p></div>
+        <div><label class="lbl" for="my-name">화면에 보이는 이름</label><input id="my-name" class="field" name="dname" maxlength="20" required value="${esc(Auth.name)}"></div>
+        <button class="btn primary" type="submit">이름 저장</button>
+      </form>
+      <p class="muted small" style="margin-top:10px">비밀번호를 바꾸려면 로그아웃한 뒤 로그인 화면의 '비밀번호를 잊었어요'를 눌러 주세요.</p>
+    </section>` : ""}
     <section class="card">
       <h2>데이터 구조</h2>
       <p class="muted small" style="margin:-6px 0 12px">관계형 데이터베이스(PostgreSQL)의 테이블 5개로 나눠 저장해요. 지금 내 기록은 약 ${Math.max(1, Math.round(bytes / 1024))}KB예요.</p>
@@ -580,4 +597,23 @@ function viewPrint(){
     <ol class="p-alist">${st.questions.map(ans).join("")}</ol>
     <p class="p-foot">퀴즈메이트에서 만든 시험지</p>
   </article>`;
+}
+
+/* 재설정 메일 링크로 들어왔을 때: 새 비밀번호 정하기 */
+function viewNewPassword(){
+  const a = S.auth;
+  return `<section class="auth" style="grid-template-columns:minmax(0,1fr);max-width:480px;margin:0 auto">
+    <div class="card auth-card">
+      <h1 style="font-size:28px;margin-bottom:8px">새 비밀번호 정하기</h1>
+      <p class="muted small" style="margin-bottom:14px">${esc(Auth.user?.email || "")} 계정의 비밀번호를 새로 정해요.</p>
+      ${a.err ? `<p class="notice" role="alert" style="margin-bottom:14px">${esc(a.err)}</p>` : ""}
+      <form id="newpw-form" class="auth-form" novalidate>
+        <label class="lbl" for="np-1">새 비밀번호</label>
+        <input id="np-1" class="field" name="password" type="password" autocomplete="new-password" required minlength="6" placeholder="6자 이상">
+        <label class="lbl" for="np-2">새 비밀번호 확인</label>
+        <input id="np-2" class="field" name="password2" type="password" autocomplete="new-password" required minlength="6">
+        <button class="btn primary big" type="submit" ${a.busy ? "disabled" : ""}>${a.busy ? "저장하는 중…" : "비밀번호 바꾸기"}</button>
+      </form>
+    </div>
+  </section>`;
 }

@@ -466,3 +466,8 @@ body.signed-out .nav, body.signed-out .tabbar, body.signed-out .top-r .btn.prima
 .pg{display:inline-block;margin-left:4px;font-size:12px;font-weight:700;color:var(--primary);background:var(--primary-s);padding:1px 8px;border-radius:999px;white-space:nowrap}
 .check-line{display:flex;align-items:flex-start;gap:10px;margin-top:16px;cursor:pointer}
 .check-line input{width:20px;height:20px;margin-top:2px;accent-color:var(--primary);flex:none}
+
+/* 내 정보 */
+.name-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:16px;align-items:end}
+.name-form p{padding:11px 0;font-weight:600}
+@media (max-width:700px){.name-form{grid-template-columns:minmax(0,1fr)}}

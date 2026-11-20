@@ -28,6 +28,7 @@ function render(){
   document.body.classList.toggle("signed-out", Auth.needLogin());
   let html;
   if (!Auth.checked) html = loadingView();
+  else if (S.recovery && Auth.user) html = viewNewPassword();
   else if (Auth.needLogin()) html = viewLogin();
   else if (r === "quiz") { if (!S.quiz) return go("home"); html = viewQuiz(); }
   else if (r === "result") { if (!S.result) return go("home"); html = viewResult(); }
@@ -471,6 +472,35 @@ document.addEventListener("keydown", e => {
   else if (e.key === "ArrowLeft" && q.idx > 0) { q.idx--; render(); }
 });
 window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
+
+/* 비밀번호 재설정, 새 비밀번호, 이름 바꾸기 폼 */
+document.addEventListener("submit", async e => {
+  const form = e.target, a = S.auth;
+  if (form.id === "reset-form") {
+    e.preventDefault(); if (a.busy) return;
+    a.email = form.email.value.trim(); a.err = ""; a.info = "";
+    if (!a.email) { a.err = "이메일을 넣어 주세요."; return render(); }
+    a.busy = true; render();
+    try { await Auth.sendReset(a.email); a.mode = "login"; a.info = `${a.email}로 비밀번호 재설정 링크를 보냈어요. 메일의 링크를 누르면 이 사이트에서 새 비밀번호를 정할 수 있어요.`; }
+    catch (err) { a.err = authErr(err); }
+    a.busy = false; render();
+  } else if (form.id === "newpw-form") {
+    e.preventDefault(); if (a.busy) return;
+    const p1 = form.password.value, p2 = form.password2.value; a.err = "";
+    if (p1.length < 6) { a.err = "비밀번호는 6자 이상이어야 해요."; return render(); }
+    if (p1 !== p2) { a.err = "비밀번호 두 칸이 서로 달라요."; return render(); }
+    a.busy = true; render();
+    try { await Auth.setPassword(p1); S.recovery = false; toast("비밀번호를 바꿨어요."); go("home"); }
+    catch (err) { a.err = authErr(err); }
+    a.busy = false; render();
+  } else if (form.id === "name-form") {
+    e.preventDefault();
+    const name = form.dname.value.trim();
+    if (!name) { toast("이름을 넣어 주세요.", "bad"); return; }
+    try { await Auth.setName(name); updateStatus(); toast("이름을 바꿨어요."); }
+    catch (err) { toast("이름을 저장하지 못했어요.", "bad"); }
+  }
+});
 
 /* 로그인·회원가입 폼: 수업 4장의 form 요소를 쓰고, 제출은 JavaScript가 Supabase로 보낸다 */
 document.addEventListener("submit", async e => {

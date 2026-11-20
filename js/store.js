@@ -21,6 +21,9 @@ const Auth = {
     const {data} = await sb.auth.getSession();
     await this.apply(data.session);
     sb.auth.onAuthStateChange((event, session) => {
+      // 비밀번호 재설정 메일의 링크로 들어오면 새 비밀번호 화면을 보여 준다
+      if (event === "PASSWORD_RECOVERY") { S.recovery = true; setTimeout(() => this.apply(session).then(() => { Store.init(); render(); }), 0); return; }
+      if (event === "USER_UPDATED" && session?.user) { this.user = session.user; this.name = session.user.user_metadata?.display_name || session.user.email.split("@")[0]; updateStatus(); return; }
       // 같은 사람의 토큰 갱신은 무시하고, 로그인·로그아웃이 바뀔 때만 다시 불러온다
       const uid = session?.user?.id || null;
       if (uid === (this.user?.id || null)) return;
@@ -48,6 +51,20 @@ const Auth = {
     return {needConfirm:!data.session};
   },
   async signOut(){ await sb.auth.signOut(); },
+  async sendReset(email){
+    const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo:location.origin + location.pathname});
+    if (error) throw error;
+  },
+  async setPassword(password){
+    const {error} = await sb.auth.updateUser({password});
+    if (error) throw error;
+  },
+  async setName(name){
+    const {error} = await sb.auth.updateUser({data:{display_name:name}});
+    if (error) throw error;
+    await sb.from("profiles").update({display_name:name}).eq("id", this.user.id);
+    this.name = name;
+  },
   startGuest(){ try { localStorage.setItem(GUEST_KEY, "1"); } catch (e) {} }
 };
 
@@ -62,7 +79,9 @@ function authErr(e){
     weak_password:"비밀번호는 6자 이상이어야 해요.",
     over_email_send_rate_limit:"인증 메일을 너무 많이 보냈어요. 잠시 후 다시 시도해 주세요.",
     over_request_rate_limit:"요청이 너무 많아요. 잠시 후 다시 시도해 주세요.",
-    signup_disabled:"지금은 회원가입을 받지 않아요."
+    signup_disabled:"지금은 회원가입을 받지 않아요.",
+    same_password:"지금 쓰는 비밀번호와 다른 비밀번호를 넣어 주세요.",
+    email_address_not_authorized:"이 이메일로는 메일을 보낼 수 없어요. 관리자에게 문의해 주세요."
   };
   if (byCode[e?.code]) return byCode[e.code];
   const m = String(e?.message || "");
