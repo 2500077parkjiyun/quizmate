@@ -52,7 +52,21 @@ const Auth = {
 };
 
 function authErr(e){
+  // Supabase가 알려 주는 오류 코드로 먼저 구분하고, 없으면 메시지 글자로 구분한다
+  const byCode = {
+    email_address_invalid:"쓸 수 없는 이메일 주소예요. test@example.com 같은 예시 주소 말고 실제로 쓰는 이메일을 넣어 주세요.",
+    invalid_credentials:"이메일 또는 비밀번호가 맞지 않아요.",
+    email_not_confirmed:"메일함에서 인증 링크를 먼저 눌러 주세요.",
+    user_already_exists:"이미 가입한 이메일이에요. 로그인해 주세요.",
+    email_exists:"이미 가입한 이메일이에요. 로그인해 주세요.",
+    weak_password:"비밀번호는 6자 이상이어야 해요.",
+    over_email_send_rate_limit:"인증 메일을 너무 많이 보냈어요. 잠시 후 다시 시도해 주세요.",
+    over_request_rate_limit:"요청이 너무 많아요. 잠시 후 다시 시도해 주세요.",
+    signup_disabled:"지금은 회원가입을 받지 않아요."
+  };
+  if (byCode[e?.code]) return byCode[e.code];
   const m = String(e?.message || "");
+  if (/is invalid/i.test(m) && /email/i.test(m)) return byCode.email_address_invalid;
   if (/invalid login credentials/i.test(m)) return "이메일 또는 비밀번호가 맞지 않아요.";
   if (/email not confirmed/i.test(m)) return "메일함에서 인증 링크를 먼저 눌러 주세요.";
   if (/already registered|already been registered/i.test(m)) return "이미 가입한 이메일이에요. 로그인해 주세요.";
