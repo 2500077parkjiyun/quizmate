@@ -96,6 +96,8 @@ function normalizeQuestions(arr, allowed){
         if (!hit) { const strip = ans.replace(/^\s*(?:[①②③④⑤]|[1-5A-Ea-e][.)])\s*/, ""); hit = opts.find(o => norm(o) === norm(strip)); }
       }
       if (!hit) continue;
+      // AI는 정답을 1번 보기에 자주 두므로 보기 순서를 무작위로 섞는다 (정답은 글자로 저장되어 순서와 무관)
+      for (let i = opts.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [opts[i], opts[j]] = [opts[j], opts[i]]; }
       q.options = opts; q.answer = hit;
     } else if (type === "ox") {
       const a = norm(ans);
