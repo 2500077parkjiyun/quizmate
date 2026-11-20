@@ -86,8 +86,8 @@ async function gradeQuiz(){
     if (aiReady()) {
       try {
         const items = needAI.map(i => { const x = q.questions[i]; return {id:"q" + (i + 1), type:x.type, question:x.question, answer:x.answer, acceptable_answers:x.acceptable_answers || [], rubric:x.rubric || "", student_answer:results[i].user}; });
-        const out = await S.ai.json(gradePrompt(items), {modelTier:"default"});
-        const arr = Array.isArray(out) ? out : (out && Array.isArray(out.results) ? out.results : []);
+        const out = await aiCall("grade", {items});
+        const arr = Array.isArray(out?.results) ? out.results : [];
         const byId = new Map(arr.filter(o => o && o.id).map(o => [String(o.id), o]));
         needAI.forEach(i => {
           const o = byId.get("q" + (i + 1)), r = results[i], x = q.questions[i];
@@ -168,11 +168,8 @@ async function generate(){
   S.gen = {busy:true, made:0, total:f.count, ctl, err:""};
   renderGenBar();
   try {
-    const out = await S.ai.json(genPrompt(f), {signal:ctl.signal, cache:false, onText:({text}) => {
-      const m = (text.match(/"question"\s*:/g) || []).length;
-      if (m !== S.gen.made) { S.gen.made = m; renderGenBar(); }
-    }});
-    const list = normalizeQuestions(Array.isArray(out) ? out : out && out.questions, allowed).slice(0, f.count);
+    const out = await aiCall("generate", {text:f.text.trim(), count:f.count, difficulty:f.diff, types:allowed}, ctl.signal);
+    const list = normalizeQuestions(out && out.questions, allowed).slice(0, f.count);
     if (!list.length) throw {code:"invalid_json"};
     const id = mkId("set");
     const title = f.title.trim() || (f.text.trim().split("\n")[0].slice(0, 24) + (f.text.trim().split("\n")[0].length > 24 ? "…" : ""));
@@ -242,8 +239,9 @@ async function handleFiles(files){
       if (!aiReady() || !S.aiLimits?.images) throw new Error("사진에서 글자를 읽으려면 AI가 필요해요. 이 화면에서는 쓸 수 없으니 글자를 직접 붙여 넣어 주세요.");
       const max = S.aiLimits.images.maxCount || 5;
       if (imgs.length > max) throw new Error(`사진은 한 번에 ${max}장까지 올릴 수 있어요.`);
-      const r = await S.ai(OCR_PROMPT, {images:imgs, cache:false});
-      text += r.text + "\n\n";
+      const images = await Promise.all(imgs.map(imageToPayload));
+      const r = await aiCall("ocr", {images});
+      text += (r?.text || "") + "\n\n";
     }
     text = cleanText(text);
     if (text.replace(/\s/g, "").length < 20) throw new Error("파일에서 글자를 거의 찾지 못했어요. 스캔한 PDF라면 페이지를 사진으로 올리거나 글자를 직접 붙여 넣어 주세요.");
@@ -354,7 +352,7 @@ async function makeSimilar(id){
   S.simBusy[id] = true; render();
   try {
     const s = w.setId ? findSet(w.setId) : null;
-    const out = await S.ai.json(similarPrompt(w.question, s && s.material), {cache:false});
+    const out = await aiCall("similar", {question:w.question, material:(s && s.material) || ""});
     const one = normalizeQuestions([out && out.question ? out.question : out], [w.question.type])[0];
     if (!one) throw {code:"invalid_json"};
     S.similar[id] = {...one, id:"sim_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)};

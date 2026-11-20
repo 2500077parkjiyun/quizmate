@@ -3,6 +3,11 @@
 Thumbs.db
 .vscode/
 
+# 수업 자료(교안 PDF)는 외부 공개 금지 — 저장소에 넣지 않기
+*.pdf
+수업자료/
+course/
+
 # 비밀 값은 절대 올리지 않기
 .env
 .env.*

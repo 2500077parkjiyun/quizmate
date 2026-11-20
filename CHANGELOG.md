@@ -4,6 +4,17 @@
 
 ## 2026-11-20
 
+### AI 기능을 Supabase Edge Function + Claude API로 연결
+- **바뀐 것**
+  - 서버 함수 `supabase/functions/ai/index.ts` 추가: 문제 생성, 단답형·서술형 채점, 비슷한 문제 만들기, 사진 글자 읽기(OCR)
+  - 함수가 Anthropic의 Claude API(Messages API)를 부름. 기본 모델은 `claude-sonnet-5-5`이고 시크릿 `ANTHROPIC_MODEL`로 바꿀 수 있음
+  - 브라우저는 `aiCall()`로 이 함수만 부르고, Claude API 키는 Supabase 시크릿(`ANTHROPIC_API_KEY`)에만 둠
+  - 로그인한 사용자만 AI를 쓸 수 있게 함수 안에서 로그인 토큰을 확인
+  - AI에게 주는 지시문(프롬프트)을 서버로 옮겨서, 함수를 다른 용도로 쓸 수 없게 함
+  - 사진은 긴 변 1600px로 줄여서 보냄 (전송 용량 감소)
+- **이유:** Claude 페이지 밖(GitHub Pages)에서도 Claude AI가 동작하게 하고, API 키가 코드에 드러나지 않게 하기 위해. 처음 명세(docs/prompt.md)의 Gemini 계획은 쓰지 않고 Claude로만 개발
+- **확인:** 함수 배포 완료. 체험 모드에서는 "로그인하면 AI를 쓸 수 있어요" 안내가 나오고 예시 세트 풀이는 그대로 동작
+
 ### 이메일 로그인 + Supabase에 기록 저장
 - **바뀐 것**
   - 로그인·회원가입 화면 추가 (Supabase Auth, 이메일과 비밀번호). 로그인하지 않으면 이 화면이 먼저 나옴

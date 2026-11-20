@@ -127,7 +127,7 @@ function viewNew(){
   const imgOk = aiReady() && !!S.aiLimits?.images;
   const subjects = [...new Set(getSets().map(s => s.subject).filter(Boolean))];
   const why = genBlock();
-  const aiNotice = S.aiChecked && !aiReady() ? `<div class="notice" style="margin-bottom:18px"><b>AI 기능을 쓸 수 없는 화면이에요.</b> ${esc(S.blockedMsg || "claude.ai에 로그인한 상태에서 이 페이지를 열면 문제 생성과 서술형 채점을 쓸 수 있어요.")} 그동안 <a href="#" data-act="play-set" data-id="example">예시 문제 세트</a>로 풀이와 오답노트를 체험할 수 있어요.</div>` : "";
+  const aiNotice = S.aiChecked && !aiReady() ? `<div class="notice" style="margin-bottom:18px"><b>지금은 AI를 쓸 수 없어요.</b> ${esc(S.blockedMsg || "로그인하면 문제 생성과 서술형 채점을 쓸 수 있어요.")} 그동안 <a href="#" data-act="play-set" data-id="example">예시 문제 세트</a>로 풀이와 오답노트를 체험할 수 있어요.${!Auth.user && sb ? ` <button class="linkbtn" data-act="go-login">로그인하기</button>` : ""}</div>` : "";
   const g = S.gen;
   let bar;
   if (g && g.busy) {

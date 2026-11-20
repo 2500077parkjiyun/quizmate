@@ -24,7 +24,7 @@ const Auth = {
       // 같은 사람의 토큰 갱신은 무시하고, 로그인·로그아웃이 바뀔 때만 다시 불러온다
       const uid = session?.user?.id || null;
       if (uid === (this.user?.id || null)) return;
-      setTimeout(() => this.apply(session).then(() => Store.init()), 0);
+      setTimeout(() => this.apply(session).then(() => { Store.init(); initAI(); }), 0);
     });
   },
   async apply(session){
